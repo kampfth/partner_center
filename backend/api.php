@@ -697,27 +697,30 @@ try {
             
             $note = optionalString($data, 'note', 500);
             
-            // For shared withdrawals, use a special partner_id or the first partner
-            // Get first partner as default
-            $partnersResp = $supabase->select('partners', '?order=id.asc&limit=1');
-            $defaultPartnerId = null;
+            // Get all partners - create one withdrawal per partner with the SAME amount
+            $partnersResp = $supabase->select('partners', '?order=id.asc');
+            $partners = [];
             if ($partnersResp['code'] === 200) {
-                $partners = json_decode($partnersResp['body'], true);
-                if (is_array($partners) && count($partners) > 0) {
-                    $defaultPartnerId = $partners[0]['id'];
+                $decoded = json_decode($partnersResp['body'], true);
+                if (is_array($decoded)) {
+                    $partners = $decoded;
                 }
             }
             
-            if (!$defaultPartnerId) throw new Exception('No partners found');
+            if (count($partners) === 0) throw new Exception('No partners found');
             
-            $newWithdrawal = [
-                'year_month' => $yearMonth,
-                'partner_id' => $defaultPartnerId, // Use first partner for shared withdrawals
-                'amount' => $amount,
-                'note' => $note
-            ];
+            // Create one withdrawal for EACH partner
+            $newWithdrawals = [];
+            foreach ($partners as $partner) {
+                $newWithdrawals[] = [
+                    'year_month' => $yearMonth,
+                    'partner_id' => $partner['id'],
+                    'amount' => $amount, // Same amount for each partner
+                    'note' => $note
+                ];
+            }
             
-            $resp = $supabase->insert('balance_withdrawals', [$newWithdrawal], false, true);
+            $resp = $supabase->insert('balance_withdrawals', $newWithdrawals, false, true);
             if ($resp['code'] >= 400) throw new Exception('Failed to create withdrawal: ' . $resp['body']);
             
             echo $resp['body'];
@@ -738,30 +741,41 @@ try {
             
             $note = optionalString($data, 'note', 500);
             
-            // Get current partner_id from existing record
+            // Get the withdrawal being edited
             $existing = $supabase->select('balance_withdrawals', "?id=eq.$id");
-            $partnerId = null;
+            $currentWithdrawal = null;
             if ($existing['code'] === 200) {
                 $rows = json_decode($existing['body'], true);
                 if (is_array($rows) && count($rows) > 0) {
-                    $partnerId = $rows[0]['partner_id'];
+                    $currentWithdrawal = $rows[0];
                 }
             }
             
-            if (!$partnerId) throw new Exception('Withdrawal not found');
+            if (!$currentWithdrawal) throw new Exception('Withdrawal not found');
             
-            $updates = [
-                'year_month' => $yearMonth,
-                'partner_id' => $partnerId, // Keep existing partner_id
-                'amount' => $amount,
-                'note' => $note,
-                'updated_at' => date('c')
-            ];
+            // Find ALL withdrawals with the same year_month to update them all
+            $allWithdrawalsResp = $supabase->select('balance_withdrawals', "?year_month=eq.$yearMonth");
+            $allWithdrawals = [];
+            if ($allWithdrawalsResp['code'] === 200) {
+                $decoded = json_decode($allWithdrawalsResp['body'], true);
+                if (is_array($decoded)) {
+                    $allWithdrawals = $decoded;
+                }
+            }
             
-            $resp = $supabase->update('balance_withdrawals', $updates, "?id=eq.$id");
-            if ($resp['code'] >= 400) throw new Exception('Failed to update withdrawal: ' . $resp['body']);
+            // Update ALL withdrawals for that month (both partners)
+            foreach ($allWithdrawals as $w) {
+                $updates = [
+                    'year_month' => $yearMonth,
+                    'amount' => $amount, // Same amount for all
+                    'note' => $note,
+                    'updated_at' => date('c')
+                ];
+                
+                $supabase->update('balance_withdrawals', $updates, "?id=eq." . $w['id']);
+            }
             
-            echo $resp['body'];
+            echo json_encode(['success' => true]);
             break;
             
         case 'delete_withdrawal':
@@ -771,7 +785,20 @@ try {
             $id = intval($data['id'] ?? 0);
             if ($id <= 0) throw new Exception('Invalid id');
             
-            $resp = $supabase->request('DELETE', "balance_withdrawals?id=eq.$id");
+            // Get the withdrawal to find its year_month
+            $existing = $supabase->select('balance_withdrawals', "?id=eq.$id");
+            $yearMonth = null;
+            if ($existing['code'] === 200) {
+                $rows = json_decode($existing['body'], true);
+                if (is_array($rows) && count($rows) > 0) {
+                    $yearMonth = $rows[0]['year_month'];
+                }
+            }
+            
+            if (!$yearMonth) throw new Exception('Withdrawal not found');
+            
+            // Delete ALL withdrawals with the same year_month (both partners)
+            $resp = $supabase->request('DELETE', "balance_withdrawals?year_month=eq.$yearMonth");
             if ($resp['code'] >= 400) throw new Exception('Failed to delete withdrawal: ' . $resp['body']);
             
             echo json_encode(['success' => true]);
