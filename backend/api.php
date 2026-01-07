@@ -470,9 +470,9 @@ try {
             $expensesPercentageByMonth = [];
             foreach ($months as $month) {
                 $revenue = $revenueSubtotalByMonth[$month] ?? 0;
-                $expenses = $expensesTotalByMonth[$month] ?? 0;
-                $withdrawals = $withdrawalsTotalByMonth[$month] ?? 0;
-                $totalExp = $expenses + $withdrawals;
+                $monthExpenses = $expensesTotalByMonth[$month] ?? 0;
+                $monthWithdrawals = $withdrawalsTotalByMonth[$month] ?? 0;
+                $totalExp = $monthExpenses + $monthWithdrawals;
                 
                 if ($revenue > 0) {
                     $expensesPercentageByMonth[$month] = ($totalExp / $revenue) * 100;
