@@ -1,13 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Shield, FileBarChart, Settings } from 'lucide-react';
+import { LayoutDashboard, Package, FileBarChart, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/products', label: 'Products', icon: Package },
+  { path: '/report', label: 'Reports', icon: FileBarChart },
   { path: '/admin', label: 'Admin', icon: Shield },
-  { path: '/report', label: 'Report', icon: FileBarChart },
-  { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function TopNav() {

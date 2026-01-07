@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { PageSkeleton } from "./components/ui/skeleton";
 
@@ -12,7 +12,6 @@ const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const ProductsPage = lazy(() => import("./pages/ProductsPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const ReportPage = lazy(() => import("./pages/ReportPage"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -57,14 +56,6 @@ const App = () => (
               }
             />
             <Route
-              path="/admin"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminPage />
-                </Suspense>
-              }
-            />
-            <Route
               path="/report"
               element={
                 <Suspense fallback={<PageLoader />}>
@@ -73,13 +64,15 @@ const App = () => (
               }
             />
             <Route
-              path="/settings"
+              path="/admin"
               element={
                 <Suspense fallback={<PageLoader />}>
-                  <SettingsPage />
+                  <AdminPage />
                 </Suspense>
               }
             />
+            {/* Redirect old settings URL to admin */}
+            <Route path="/settings" element={<Navigate to="/admin" replace />} />
           </Route>
           <Route
             path="*"

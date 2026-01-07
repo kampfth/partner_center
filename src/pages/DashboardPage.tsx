@@ -177,27 +177,21 @@ export default function DashboardPage() {
           <div className="flex gap-3">
             <div className="flex-1 space-y-1.5">
               <Label htmlFor="start" className="text-xs text-muted-foreground">From</Label>
-              <div className="relative">
-                <Input
-                  id="start"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="date-input-white"
-                />
-              </div>
+              <Input
+                id="start"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
             </div>
             <div className="flex-1 space-y-1.5">
               <Label htmlFor="end" className="text-xs text-muted-foreground">To</Label>
-              <div className="relative">
-                <Input
-                  id="end"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="date-input-white"
-                />
-              </div>
+              <Input
+                id="end"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
             </div>
           </div>
         </div>
