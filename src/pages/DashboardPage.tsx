@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo, lazy, Suspense, useCallback } from 'react';
-import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
-import { DollarSign, TrendingUp, ShoppingCart, Calendar } from 'lucide-react';
+import { format, startOfMonth } from 'date-fns';
+import { DollarSign, TrendingUp, ShoppingCart, CalendarDays } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { ChartSkeleton, Skeleton } from '@/components/ui/skeleton';
-import { fetchReport } from '@/api/partnerApi';
+import { fetchReport, fetchDateRange } from '@/api/partnerApi';
 import type { ReportResponse, ReportSummary } from '@/types';
 
 const SalesChart = lazy(() => import('@/components/charts/SalesChart'));
@@ -24,13 +24,13 @@ function formatCurrency(value: number): string {
 function StatCardSkeleton() {
   return (
     <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between mb-3">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-2">
           <Skeleton className="h-3 w-20" />
           <Skeleton className="h-4 w-4 rounded" />
         </div>
-        <Skeleton className="h-8 w-28" />
-        <Skeleton className="h-3 w-16 mt-2" />
+        <Skeleton className="h-7 w-24" />
+        <Skeleton className="h-3 w-16 mt-1" />
       </CardContent>
     </Card>
   );
@@ -49,16 +49,16 @@ function StatCard({
 }) {
   return (
     <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between mb-3">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             {title}
           </span>
           <Icon className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
         </div>
-        <div className="display-number">{value}</div>
+        <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
         {subtitle && (
-          <p className="text-xs text-muted-foreground mt-2">{subtitle}</p>
+          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
         )}
       </CardContent>
     </Card>
@@ -77,8 +77,8 @@ function ProductSummaryCard({
     : 0;
 
   return (
-    <div className="flex items-center gap-4 py-3 border-b border-border/20 last:border-0">
-      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-secondary text-xs font-medium text-muted-foreground">
+    <div className="flex items-center gap-3 py-2.5 border-b border-border/20 last:border-0">
+      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-secondary text-xs font-medium text-muted-foreground">
         {rank}
       </div>
       <div className="flex-1 min-w-0">
@@ -96,17 +96,49 @@ function ProductSummaryCard({
 }
 
 export default function DashboardPage() {
-  const [startDate, setStartDate] = useState(() => 
-    format(startOfMonth(new Date()), 'yyyy-MM-dd')
-  );
-  const [endDate, setEndDate] = useState(() => 
-    format(endOfMonth(new Date()), 'yyyy-MM-dd')
-  );
+  const [minDate, setMinDate] = useState<string | null>(null);
+  const [maxDate, setMaxDate] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [data, setData] = useState<ReportResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Load date range first
+  useEffect(() => {
+    async function loadDateRange() {
+      try {
+        const range = await fetchDateRange();
+        setMinDate(range.min_date);
+        setMaxDate(range.max_date);
+        
+        if (range.max_date) {
+          // Set default to the month of the last sale
+          const lastSaleDate = new Date(range.max_date);
+          const monthStart = format(startOfMonth(lastSaleDate), 'yyyy-MM-dd');
+          setStartDate(monthStart);
+          setEndDate(range.max_date);
+        } else {
+          // No data, use current month
+          const now = new Date();
+          setStartDate(format(startOfMonth(now), 'yyyy-MM-dd'));
+          setEndDate(format(now, 'yyyy-MM-dd'));
+        }
+      } catch (err) {
+        console.error('Failed to load date range:', err);
+        const now = new Date();
+        setStartDate(format(startOfMonth(now), 'yyyy-MM-dd'));
+        setEndDate(format(now, 'yyyy-MM-dd'));
+      } finally {
+        setInitializing(false);
+      }
+    }
+    loadDateRange();
+  }, []);
+
   const loadData = useCallback(async () => {
+    if (!startDate || !endDate) return;
     setLoading(true);
     setError(null);
     try {
@@ -120,8 +152,10 @@ export default function DashboardPage() {
   }, [startDate, endDate]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!initializing && startDate && endDate) {
+      loadData();
+    }
+  }, [loadData, initializing, startDate, endDate]);
 
   const stats = useMemo(() => {
     if (!data) return null;
@@ -142,25 +176,41 @@ export default function DashboardPage() {
   }, [data]);
 
   const setQuickRange = (days: number) => {
-    const end = new Date();
-    const start = subDays(end, days);
-    setStartDate(format(start, 'yyyy-MM-dd'));
-    setEndDate(format(end, 'yyyy-MM-dd'));
+    if (!maxDate) return;
+    const end = new Date(maxDate);
+    const start = new Date(end);
+    start.setDate(start.getDate() - days + 1);
+    
+    // Don't go before minDate
+    if (minDate && start < new Date(minDate)) {
+      setStartDate(minDate);
+    } else {
+      setStartDate(format(start, 'yyyy-MM-dd'));
+    }
+    setEndDate(maxDate);
   };
 
   if (error) return <ErrorState message={error} onRetry={loadData} />;
 
   return (
-    <div className="space-y-6 fade-in">
+    <div className="space-y-5 fade-in">
       {/* Header */}
-      <div className="space-y-5">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Sales overview</p>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">Sales overview</p>
+          </div>
+          {maxDate && (
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Last Sale</p>
+              <p className="text-sm font-medium">{format(new Date(maxDate), 'MMM d, yyyy')}</p>
+            </div>
+          )}
         </div>
         
         {/* Date Controls */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex gap-2">
             {[7, 30, 90].map((days) => (
               <Button
@@ -169,27 +219,32 @@ export default function DashboardPage() {
                 size="sm"
                 onClick={() => setQuickRange(days)}
                 className="bg-secondary/80 hover:bg-secondary border border-border/50"
+                disabled={!maxDate}
               >
                 {days}d
               </Button>
             ))}
           </div>
           <div className="flex gap-3">
-            <div className="flex-1 space-y-1.5">
+            <div className="flex-1 space-y-1">
               <Label htmlFor="start" className="text-xs text-muted-foreground">From</Label>
               <Input
                 id="start"
                 type="date"
                 value={startDate}
+                min={minDate || undefined}
+                max={maxDate || undefined}
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
-            <div className="flex-1 space-y-1.5">
+            <div className="flex-1 space-y-1">
               <Label htmlFor="end" className="text-xs text-muted-foreground">To</Label>
               <Input
                 id="end"
                 type="date"
                 value={endDate}
+                min={minDate || undefined}
+                max={maxDate || undefined}
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
@@ -198,8 +253,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        {loading ? (
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        {loading || initializing ? (
           <>
             <StatCardSkeleton />
             <StatCardSkeleton />
@@ -227,8 +282,8 @@ export default function DashboardPage() {
             <StatCard
               title="Period"
               value={`${stats.daysWithData}d`}
-              icon={Calendar}
-              subtitle={`${format(new Date(startDate), 'MMM d')} – ${format(new Date(endDate), 'MMM d')}`}
+              icon={CalendarDays}
+              subtitle={startDate && endDate ? `${format(new Date(startDate), 'MMM d')} – ${format(new Date(endDate), 'MMM d')}` : ''}
             />
           </>
         ) : null}
@@ -238,18 +293,18 @@ export default function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Chart */}
         <Card>
-          <div className="p-4 sm:p-5">
+          <div className="p-4">
             <h2 className="text-base font-semibold">Daily Sales</h2>
           </div>
           <CardContent className="pt-0">
-            {loading ? (
+            {loading || initializing ? (
               <ChartSkeleton />
             ) : chartData.length > 0 ? (
               <Suspense fallback={<ChartSkeleton />}>
                 <SalesChart data={chartData} />
               </Suspense>
             ) : (
-              <p className="py-16 text-center text-sm text-muted-foreground">
+              <p className="py-12 text-center text-sm text-muted-foreground">
                 No data for selected period
               </p>
             )}
@@ -258,22 +313,22 @@ export default function DashboardPage() {
 
         {/* Top Products */}
         <Card>
-          <div className="p-4 sm:p-5">
+          <div className="p-4">
             <h2 className="text-base font-semibold">Top Products</h2>
           </div>
           <CardContent className="pt-0">
-            {loading ? (
-              <div className="space-y-3">
+            {loading || initializing ? (
+              <div className="space-y-2">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex items-center gap-4 py-3">
-                    <Skeleton className="w-7 h-7 rounded-full" />
+                  <div key={i} className="flex items-center gap-3 py-2.5">
+                    <Skeleton className="w-6 h-6 rounded-full" />
                     <div className="flex-1">
-                      <Skeleton className="h-4 w-32 mb-1" />
-                      <Skeleton className="h-3 w-20" />
+                      <Skeleton className="h-4 w-28 mb-1" />
+                      <Skeleton className="h-3 w-16" />
                     </div>
                     <div className="text-right">
-                      <Skeleton className="h-4 w-20 mb-1" />
-                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-4 w-16 mb-1" />
+                      <Skeleton className="h-3 w-12" />
                     </div>
                   </div>
                 ))}

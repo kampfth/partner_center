@@ -28,6 +28,35 @@ $supabase = new Supabase(SUPABASE_URL, SUPABASE_KEY);
 
 try {
     switch ($action) {
+        // --- DATE RANGE ---
+        case 'date_range':
+            // Get min and max dates from daily_sales view
+            $minResp = $supabase->select('daily_sales', '?select=date&order=date.asc&limit=1');
+            $maxResp = $supabase->select('daily_sales', '?select=date&order=date.desc&limit=1');
+            
+            $minDate = null;
+            $maxDate = null;
+            
+            if ($minResp['code'] === 200 && !empty($minResp['body'])) {
+                $decoded = json_decode($minResp['body'], true);
+                if (is_array($decoded) && count($decoded) > 0) {
+                    $minDate = $decoded[0]['date'];
+                }
+            }
+            
+            if ($maxResp['code'] === 200 && !empty($maxResp['body'])) {
+                $decoded = json_decode($maxResp['body'], true);
+                if (is_array($decoded) && count($decoded) > 0) {
+                    $maxDate = $decoded[0]['date'];
+                }
+            }
+            
+            echo json_encode([
+                'min_date' => $minDate,
+                'max_date' => $maxDate
+            ]);
+            break;
+
         // --- EXISTING ACTIONS ---
         case 'products':
             $resp = $supabase->select('products', '?select=*,product_groups(name,id)&order=product_name.asc');
@@ -144,6 +173,28 @@ try {
             
             $resp = $supabase->insert('products', [$newProduct], false, true);
             echo $resp['body'];
+            break;
+
+        case 'available_products':
+            // Get distinct products from transactions that are NOT in the products table
+            // This requires an RPC or a more complex query
+            // For now, let's get distinct product_id, product_name from transactions
+            $resp = $supabase->request('POST', 'rpc/get_available_products', []);
+            if ($resp['code'] === 200) {
+                echo $resp['body'];
+            } else {
+                // Fallback: return empty if RPC doesn't exist
+                echo json_encode([]);
+            }
+            break;
+
+        case 'remove_product':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception('POST required');
+            $data = requireJsonBody();
+            $pid = requireUuid($data, 'product_id');
+            
+            $resp = $supabase->request('DELETE', "products?product_id=eq.$pid");
+            echo json_encode(['success' => true]);
             break;
 
         // --- NEW SETTINGS ACTIONS ---

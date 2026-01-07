@@ -75,3 +75,30 @@ export async function resetAll(): Promise<{ success: boolean }> {
 export async function uploadFile(file: File, onProgress?: ProgressCallback): Promise<UploadResponse> {
   return upload<UploadResponse>(file, onProgress);
 }
+
+// Date range for available sales data
+export interface DateRange {
+  min_date: string | null;
+  max_date: string | null;
+}
+
+export async function fetchDateRange(): Promise<DateRange> {
+  return get<DateRange>('action=date_range');
+}
+
+// Available products (from transactions but not yet tracked)
+export interface AvailableProduct {
+  product_id: string;
+  product_name: string;
+  lever: string;
+  transaction_count: number;
+  total_amount: number;
+}
+
+export async function fetchAvailableProducts(): Promise<AvailableProduct[]> {
+  return get<AvailableProduct[]>('action=available_products');
+}
+
+export async function removeProduct(product_id: string): Promise<{ success: boolean }> {
+  return post<{ success: boolean }>('action=remove_product', { product_id });
+}
