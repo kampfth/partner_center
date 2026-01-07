@@ -110,14 +110,9 @@ try {
         // --- NEW SETTINGS ACTIONS ---
 
         case 'update_password':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception('POST required');
-            $data = requireJsonBody();
-            $newPass = requireString($data, 'password', 12, 200);
-            
-            $hash = password_hash($newPass, PASSWORD_DEFAULT);
-            saveSecrets(['master_hash' => $hash]);
-            auditLog('PASSWORD_CHANGE', 'Master password updated');
-            echo json_encode(['success' => true]);
+            // Master password has been removed. Keep endpoint for backward compatibility.
+            http_response_code(400);
+            echo json_encode(['error' => 'Password login disabled']);
             break;
 
         case 'get_login_history':

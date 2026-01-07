@@ -20,17 +20,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         http_response_code(429);
         $error = "Too many attempts. Try again later.";
     } else {
-    $password = $_POST['password'] ?? '';
-    $code = $_POST['code'] ?? '';
+        $code = $_POST['code'] ?? '';
 
-    // If no master hash set, use default temporary hash for 'admin123'
-    $masterHash = $secrets['master_hash'] ?? '$2y$10$X8Kz7.X8Kz7.X8Kz7.X8Kz7.X8Kz7.X8Kz7.X8Kz7.X8Kz7.X8Kz7.'; 
-
-    if ($error === '' && password_verify($password, $masterHash)) {
         if ($setupMode) {
+            // Initial enrollment: user confirms the generated secret with a valid TOTP
             $secret = $_POST['secret'] ?? '';
             if ($ga->verifyCode($secret, $code, 2)) {
-                saveSecrets(['2fa_secret' => $secret, 'master_hash' => $masterHash]); // Save hash too to init file
+                saveSecrets(['2fa_secret' => $secret]);
                 $_SESSION['authenticated'] = true;
                 $_SESSION['created_at'] = time();
                 $_SESSION['last_activity'] = time();
@@ -39,9 +35,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: /");
                 exit;
             } else {
+                auditLog('LOGIN_FAIL', 'Invalid 2FA Code (setup)');
                 $error = "Invalid Code. Try again.";
             }
         } else {
+            // Login: only requires valid TOTP
             if ($ga->verifyCode($secrets['2fa_secret'], $code, 2)) {
                 $_SESSION['authenticated'] = true;
                 $_SESSION['created_at'] = time();
@@ -55,10 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = "Invalid Code.";
             }
         }
-    } else {
-        auditLog('LOGIN_FAIL', 'Invalid Master Password');
-        $error = "Incorrect Master Password.";
-    }
     } // rateLimit block
 }
 
@@ -84,7 +78,7 @@ $qrCodeUrl = $setupMode ? $ga->getQRCodeGoogleUrl('PartnerCenter', $newSecret) :
     
     <h2 class="text-2xl font-bold text-center mb-2">Restricted Access</h2>
     <p class="text-slate-400 text-center mb-6 text-sm">
-        <?php echo $setupMode ? "Initial Security Setup" : "Two-Factor Authentication"; ?>
+        <?php echo $setupMode ? "Initial Passkey Setup (2FA)" : "Two-Factor Authentication"; ?>
     </p>
 
     <?php if ($error): ?>
@@ -94,12 +88,6 @@ $qrCodeUrl = $setupMode ? $ga->getQRCodeGoogleUrl('PartnerCenter', $newSecret) :
     <?php endif; ?>
 
     <form method="POST" class="space-y-4">
-        
-        <div>
-            <label class="block text-sm font-medium mb-1 text-slate-300">Master Password</label>
-            <input type="password" name="password" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        </div>
-
         <?php if ($setupMode): ?>
             <div class="text-center p-4 bg-white rounded-lg mb-4">
                 <img src="<?= $qrCodeUrl ?>" class="mx-auto" />
@@ -115,7 +103,7 @@ $qrCodeUrl = $setupMode ? $ga->getQRCodeGoogleUrl('PartnerCenter', $newSecret) :
         </div>
 
         <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 rounded-lg transition-colors">
-            <?= $setupMode ? "Setup & Login" : "Login" ?>
+            <?= $setupMode ? "Setup 2FA & Login" : "Login" ?>
         </button>
     </form>
 </div>
