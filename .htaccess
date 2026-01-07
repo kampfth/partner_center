@@ -1,0 +1,11 @@
+# Redirecionar entrada padrão para index.php
+DirectoryIndex index.php
+
+# Bloquear acesso direto ao app.html e dotfiles
+<FilesMatch "^(app\.html|\.env|\.git)">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Proteção básica
+Options -Indexes
