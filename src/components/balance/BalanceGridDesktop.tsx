@@ -54,13 +54,33 @@ function groupWithdrawalsByPartner(withdrawals: Withdrawal[], partners: Partner[
     byPartner[p.id] = { byMonth: {}, yearTotal: 0, ids: [] };
   }
   
-  // Aggregate withdrawals
+  // Aggregate withdrawals - match by partner_id
   for (const w of withdrawals) {
-    const partnerId = w.partner_id;
-    if (partnerId && byPartner[partnerId]) {
-      byPartner[partnerId].byMonth[w.year_month] = (byPartner[partnerId].byMonth[w.year_month] ?? 0) + Number(w.amount ?? 0);
-      byPartner[partnerId].yearTotal += Number(w.amount ?? 0);
-      byPartner[partnerId].ids.push(w.id);
+    // Try to find partner by matching ID (handle both string comparison and case-insensitive)
+    let matchedPartnerId: string | null = null;
+    
+    if (w.partner_id) {
+      // Try exact match first
+      if (byPartner[w.partner_id]) {
+        matchedPartnerId = w.partner_id;
+      } else {
+        // Try case-insensitive match
+        const partnerIdLower = w.partner_id.toLowerCase();
+        for (const p of partners) {
+          if (p.id.toLowerCase() === partnerIdLower) {
+            matchedPartnerId = p.id;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (matchedPartnerId && byPartner[matchedPartnerId]) {
+      const amount = Number(w.amount ?? 0);
+      byPartner[matchedPartnerId].byMonth[w.year_month] = 
+        (byPartner[matchedPartnerId].byMonth[w.year_month] ?? 0) + amount;
+      byPartner[matchedPartnerId].yearTotal += amount;
+      byPartner[matchedPartnerId].ids.push(w.id);
     }
   }
   
@@ -146,12 +166,6 @@ export function BalanceGridDesktop({
   const allExpensesByName = groupByNameAndMonth(allExpenses);
   
   const withdrawalsByPartner = groupWithdrawalsByPartner(withdrawals, partners);
-  
-  console.log('Balance Debug - Fixed Expenses:', fixedExpenses);
-  console.log('Balance Debug - Variable Expenses:', variableExpenses);
-  console.log('Balance Debug - Fixed By Name:', fixedByName);
-  console.log('Balance Debug - Variable By Name:', variableByName);
-  console.log('Balance Debug - Withdrawals By Partner:', withdrawalsByPartner);
 
   const productRows = buildProductRows(data, sortOrder);
 
@@ -364,8 +378,8 @@ export function BalanceGridDesktop({
                   <tr><td colSpan={months.length + 3} className="py-4 text-center text-muted-foreground text-xs">No partners configured.</td></tr>
                 ) : (
                   partners.map((p) => {
-                    const agg = withdrawalsByPartner[p.id] || { byMonth: {}, yearTotal: 0 };
-                    const first = withdrawals.find((w) => w.partner_id === p.id);
+                    const agg = withdrawalsByPartner[p.id] || { byMonth: {}, yearTotal: 0, ids: [] };
+                    const first = withdrawals.find((w) => w.partner_id && w.partner_id.toLowerCase() === p.id.toLowerCase());
                     return (
                       <tr key={p.id} className="hover:bg-muted/20">
                         <td className="py-1.5 px-2 font-medium">{p.name.toUpperCase()}</td>
