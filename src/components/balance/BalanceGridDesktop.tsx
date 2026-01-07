@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { BalanceResponse, Expense, Withdrawal } from '@/types';
+import type { BalanceResponse, Expense, Withdrawal, Partner } from '@/types';
 import { formatCurrency, formatPercent, MONTH_LABELS_PT } from './balanceFormat';
 import { Edit2, Trash2, Plus } from 'lucide-react';
 
@@ -17,8 +17,7 @@ function toMonthHeader(ym: string): string {
 function getMonthStatus(yearMonth: string, months: string[], data: BalanceResponse): 'current' | 'closed' | 'future' {
   if (months.length === 0) return 'future';
   
-  // Find the latest month that actually has transaction data
-  let latestMonthWithData = null;
+  let latestMonthWithData: string | null = null;
   for (let i = months.length - 1; i >= 0; i--) {
     const m = months[i];
     const hasData = (data.autoRevenue?.byMonth?.[m] ?? 0) > 0;
@@ -29,7 +28,6 @@ function getMonthStatus(yearMonth: string, months: string[], data: BalanceRespon
   }
   
   if (!latestMonthWithData) return 'future';
-  
   if (yearMonth === latestMonthWithData) return 'current';
   if (yearMonth < latestMonthWithData) return 'closed';
   return 'future';
@@ -46,52 +44,46 @@ function groupByNameAndMonth(entries: { name: string; year_month: string; amount
   return byName;
 }
 
-function groupWithdrawalsByPartner(withdrawals: Withdrawal[], partners: Partner[]) {
-  const byPartner: Record<string, { byMonth: Record<string, number>; yearTotal: number; ids: number[] }> = {};
+/**
+ * Agrupa withdrawals por parceiro
+ * Cada withdrawal tem partner_id que corresponde ao id do partner
+ */
+function buildWithdrawalsByPartner(
+  withdrawals: Withdrawal[],
+  partners: Partner[]
+): Record<string, { byMonth: Record<string, number>; yearTotal: number; withdrawalIds: number[] }> {
+  const result: Record<string, { byMonth: Record<string, number>; yearTotal: number; withdrawalIds: number[] }> = {};
   
-  // Initialize for all partners
-  for (const p of partners) {
-    byPartner[p.id] = { byMonth: {}, yearTotal: 0, ids: [] };
+  // Inicializa para todos os partners
+  for (const partner of partners) {
+    result[partner.id] = { byMonth: {}, yearTotal: 0, withdrawalIds: [] };
   }
   
-  // Aggregate withdrawals - match by partner_id
+  // Agrupa withdrawals
   for (const w of withdrawals) {
-    // Try to find partner by matching ID (handle both string comparison and case-insensitive)
-    let matchedPartnerId: string | null = null;
+    const pid = w.partner_id;
+    if (!pid) continue;
     
-    if (w.partner_id) {
-      // Try exact match first
-      if (byPartner[w.partner_id]) {
-        matchedPartnerId = w.partner_id;
-      } else {
-        // Try case-insensitive match
-        const partnerIdLower = w.partner_id.toLowerCase();
-        for (const p of partners) {
-          if (p.id.toLowerCase() === partnerIdLower) {
-            matchedPartnerId = p.id;
-            break;
-          }
-        }
+    // Encontra o partner correspondente (case-insensitive)
+    let targetId: string | null = null;
+    for (const p of partners) {
+      if (p.id === pid || p.id.toLowerCase() === pid.toLowerCase()) {
+        targetId = p.id;
+        break;
       }
     }
     
-    if (matchedPartnerId && byPartner[matchedPartnerId]) {
-      const amount = Number(w.amount ?? 0);
-      byPartner[matchedPartnerId].byMonth[w.year_month] = 
-        (byPartner[matchedPartnerId].byMonth[w.year_month] ?? 0) + amount;
-      byPartner[matchedPartnerId].yearTotal += amount;
-      byPartner[matchedPartnerId].ids.push(w.id);
+    if (targetId && result[targetId]) {
+      const amount = Number(w.amount) || 0;
+      result[targetId].byMonth[w.year_month] = (result[targetId].byMonth[w.year_month] || 0) + amount;
+      result[targetId].yearTotal += amount;
+      result[targetId].withdrawalIds.push(w.id);
     }
   }
   
-  return byPartner;
+  return result;
 }
 
-/**
- * Build product rows from autoRevenue.byLine following Sort Order.
- * The backend now uses the same RPC as Reports, so display_name matches exactly.
- * Only items in Sort Order are shown. Groups (type='Group') count as 1.
- */
 function buildProductRows(
   data: BalanceResponse,
   sortOrder: SortOrder | null
@@ -99,7 +91,6 @@ function buildProductRows(
   const byLine = Array.isArray(data.autoRevenue?.byLine) ? data.autoRevenue.byLine : [];
   const orderItems = Array.isArray(sortOrder?.value) ? sortOrder.value : [];
 
-  // Map display_name -> line data
   const lineByName = new Map<string, typeof byLine[0]>();
   for (const line of byLine) {
     lineByName.set(line.key, line);
@@ -108,7 +99,6 @@ function buildProductRows(
   const rows: Array<{ key: string; label: string; byMonth: Record<string, number>; total: number; isGroup: boolean }> = [];
   const usedNames = new Set<string>();
 
-  // Add items in Sort Order
   for (const name of orderItems) {
     const trimmed = String(name ?? '').trim();
     if (!trimmed || usedNames.has(trimmed)) continue;
@@ -148,28 +138,24 @@ export function BalanceGridDesktop({
   onEditWithdrawal: (withdrawal: Withdrawal) => void;
   onDeleteWithdrawal: (id: number) => void;
 }) {
+  // Extrai dados com fallbacks seguros
   const months = Array.isArray(data.months) ? data.months : [];
   const fixedExpenses = Array.isArray(data.fixedExpenses) ? data.fixedExpenses : [];
   const variableExpenses = Array.isArray(data.variableExpenses) ? data.variableExpenses : [];
   const withdrawals = Array.isArray(data.withdrawals) ? data.withdrawals : [];
   const partners = Array.isArray(data.partners) ? data.partners : [];
 
-  // Debug logging for expenses
-  console.log('Balance Debug - Fixed Expenses:', fixedExpenses);
-  console.log('Balance Debug - Variable Expenses:', variableExpenses);
-
-  const fixedByName = groupByNameAndMonth(fixedExpenses);
-  const variableByName = groupByNameAndMonth(variableExpenses);
-  
-  // Combine all expenses into one list
+  // Agrupa expenses
   const allExpenses = [...fixedExpenses, ...variableExpenses];
   const allExpensesByName = groupByNameAndMonth(allExpenses);
   
-  const withdrawalsByPartner = groupWithdrawalsByPartner(withdrawals, partners);
+  // Agrupa withdrawals por partner
+  const withdrawalsByPartner = buildWithdrawalsByPartner(withdrawals, partners);
 
+  // Calcula produto rows
   const productRows = buildProductRows(data, sortOrder);
 
-  // Calculate totals
+  // Calcula totais
   const revenueTotal = productRows.reduce((sum, r) => sum + r.total, 0);
   const expenseTotal = data.computed?.yearTotals?.totalExpenses || 0;
   const withdrawalTotal = data.computed?.yearTotals?.totalWithdrawals || 0;
@@ -178,7 +164,7 @@ export function BalanceGridDesktop({
 
   return (
     <div className="space-y-3">
-      {/* SUMMARY - Now at the top */}
+      {/* SUMMARY */}
       <Card className="bg-gradient-to-br from-card to-muted/20">
         <CardHeader className="py-2">
           <CardTitle className="text-base">SUMMARY</CardTitle>
@@ -269,7 +255,6 @@ export function BalanceGridDesktop({
                         </td>
                       </tr>
                     ))}
-                    {/* TOTAL ROW */}
                     <tr className="border-t-2 border-border bg-muted/50">
                       <td className="py-2 px-2 font-bold text-sm">TOTAL</td>
                       {months.map((m) => {
@@ -324,7 +309,7 @@ export function BalanceGridDesktop({
                   <tr><td colSpan={months.length + 3} className="py-4 text-center text-muted-foreground text-xs">No expenses.</td></tr>
                 ) : (
                   Object.entries(allExpensesByName).map(([name, agg]) => {
-                    const first = [...fixedExpenses, ...variableExpenses].find((e) => e.name === name);
+                    const first = allExpenses.find((e) => e.name === name);
                     return (
                       <tr key={name} className="hover:bg-muted/20">
                         <td className="py-1.5 px-2 font-medium">{name.toUpperCase()}</td>
@@ -377,25 +362,27 @@ export function BalanceGridDesktop({
                 {partners.length === 0 ? (
                   <tr><td colSpan={months.length + 3} className="py-4 text-center text-muted-foreground text-xs">No partners configured.</td></tr>
                 ) : (
-                  partners.map((p) => {
-                    const agg = withdrawalsByPartner[p.id] || { byMonth: {}, yearTotal: 0, ids: [] };
-                    const first = withdrawals.find((w) => w.partner_id && w.partner_id.toLowerCase() === p.id.toLowerCase());
+                  partners.map((partner) => {
+                    const partnerData = withdrawalsByPartner[partner.id] || { byMonth: {}, yearTotal: 0, withdrawalIds: [] };
+                    // Encontra o primeiro withdrawal deste partner para edição/exclusão
+                    const firstWithdrawal = withdrawals.find((w) => w.partner_id === partner.id);
+                    
                     return (
-                      <tr key={p.id} className="hover:bg-muted/20">
-                        <td className="py-1.5 px-2 font-medium">{p.name.toUpperCase()}</td>
+                      <tr key={partner.id} className="hover:bg-muted/20">
+                        <td className="py-1.5 px-2 font-medium">{partner.name.toUpperCase()}</td>
                         {months.map((m) => (
                           <td key={m} className="py-1.5 px-1 text-right tabular-nums">
-                            {agg.byMonth[m] ? formatCurrency(agg.byMonth[m]) : <span className="text-muted-foreground/40">—</span>}
+                            {partnerData.byMonth[m] ? formatCurrency(partnerData.byMonth[m]) : <span className="text-muted-foreground/40">—</span>}
                           </td>
                         ))}
                         <td className="py-1.5 px-2 text-right font-semibold tabular-nums">
-                          {agg.yearTotal > 0 ? formatCurrency(agg.yearTotal) : <span className="text-muted-foreground/40">—</span>}
+                          {partnerData.yearTotal > 0 ? formatCurrency(partnerData.yearTotal) : <span className="text-muted-foreground/40">—</span>}
                         </td>
                         <td className="py-1.5 px-1">
-                          {first && (
+                          {firstWithdrawal && (
                             <div className="flex items-center gap-0.5 justify-end">
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditWithdrawal(first)}><Edit2 className="h-3 w-3" /></Button>
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDeleteWithdrawal(first.id)}><Trash2 className="h-3 w-3" /></Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditWithdrawal(firstWithdrawal)}><Edit2 className="h-3 w-3" /></Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDeleteWithdrawal(firstWithdrawal.id)}><Trash2 className="h-3 w-3" /></Button>
                             </div>
                           )}
                         </td>
