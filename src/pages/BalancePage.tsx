@@ -70,7 +70,6 @@ export default function BalancePage() {
   const [editingWithdrawal, setEditingWithdrawal] = useState<Withdrawal | null>(null);
   const [withdrawalForm, setWithdrawalForm] = useState({
     yearMonth: '',
-    partnerId: '',
     amount: '',
     note: '',
   });
@@ -188,7 +187,6 @@ export default function BalancePage() {
     try {
       await createWithdrawal({
         yearMonth: withdrawalForm.yearMonth,
-        partnerId: withdrawalForm.partnerId,
         amount: parseFloat(withdrawalForm.amount),
         note: withdrawalForm.note || undefined,
       });
@@ -211,7 +209,6 @@ export default function BalancePage() {
       await updateWithdrawal({
         id: editingWithdrawal.id,
         yearMonth: withdrawalForm.yearMonth,
-        partnerId: withdrawalForm.partnerId,
         amount: parseFloat(withdrawalForm.amount),
         note: withdrawalForm.note || undefined,
       });
@@ -250,7 +247,7 @@ export default function BalancePage() {
   };
 
   const resetWithdrawalForm = () => {
-    setWithdrawalForm({ yearMonth: '', partnerId: '', amount: '', note: '' });
+    setWithdrawalForm({ yearMonth: '', amount: '', note: '' });
     setEditingWithdrawal(null);
   };
 
@@ -269,7 +266,6 @@ export default function BalancePage() {
     setEditingWithdrawal(withdrawal);
     setWithdrawalForm({
       yearMonth: withdrawal.year_month,
-      partnerId: withdrawal.partner_id,
       amount: withdrawal.amount.toString(),
       note: withdrawal.note || '',
     });
@@ -431,7 +427,7 @@ export default function BalancePage() {
               {editingWithdrawal ? 'Edit Withdrawal' : 'Add Withdrawal'}
             </DialogTitle>
             <DialogDescription>
-              Add or edit a withdrawal for a specific partner and month.
+              Add or edit a shared withdrawal for both partners for a specific month.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -448,24 +444,6 @@ export default function BalancePage() {
                   {data.months.map((m) => (
                     <SelectItem key={m} value={m}>
                       {MONTH_NAMES[parseInt(m.split('-')[1], 10) - 1]} {m.split('-')[0]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="with-partner">Partner</Label>
-              <Select
-                value={withdrawalForm.partnerId}
-                onValueChange={(v) => setWithdrawalForm({ ...withdrawalForm, partnerId: v })}
-              >
-                <SelectTrigger id="with-partner">
-                  <SelectValue placeholder="Select partner" />
-                </SelectTrigger>
-                <SelectContent>
-                  {data.partners.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -499,7 +477,7 @@ export default function BalancePage() {
             </Button>
             <Button
               onClick={editingWithdrawal ? handleUpdateWithdrawal : handleCreateWithdrawal}
-              disabled={!withdrawalForm.yearMonth || !withdrawalForm.partnerId || !withdrawalForm.amount}
+              disabled={!withdrawalForm.yearMonth || !withdrawalForm.amount}
             >
               {editingWithdrawal ? 'Update' : 'Create'}
             </Button>

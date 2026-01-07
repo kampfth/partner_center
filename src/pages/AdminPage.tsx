@@ -2,9 +2,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GroupManagementTab } from './admin/GroupManagementTab';
 import { UploadTab } from './admin/UploadTab';
 import { BalanceManagerTab } from './admin/BalanceManagerTab';
+import { ProductsTab } from './admin/ProductsTab';
 import { SortOrderTab } from './settings/SortOrderTab';
 import { DangerZoneTab } from './settings/DangerZoneTab';
-import { Users, Upload, ListOrdered, AlertTriangle, Wallet } from 'lucide-react';
+import { Users, Upload, ListOrdered, AlertTriangle, Wallet, Package } from 'lucide-react';
 
 export default function AdminPage() {
   return (
@@ -15,10 +16,14 @@ export default function AdminPage() {
       </div>
 
       <Tabs defaultValue="groups" className="w-full">
-        <TabsList className="grid w-full max-w-[750px] grid-cols-5">
+        <TabsList className="grid w-full max-w-[900px] grid-cols-6">
           <TabsTrigger value="groups" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Groups</span>
+          </TabsTrigger>
+          <TabsTrigger value="products" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            <span className="hidden sm:inline">Products</span>
           </TabsTrigger>
           <TabsTrigger value="upload" className="flex items-center gap-2">
             <Upload className="h-4 w-4" />
@@ -39,6 +44,9 @@ export default function AdminPage() {
         </TabsList>
         <TabsContent value="groups" className="mt-6">
           <GroupManagementTab />
+        </TabsContent>
+        <TabsContent value="products" className="mt-6">
+          <ProductsTab />
         </TabsContent>
         <TabsContent value="upload" className="mt-6">
           <UploadTab />

@@ -1,11 +1,10 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, FileBarChart, Shield, Wallet } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Shield, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/products', label: 'Products', icon: Package },
-  { path: '/report', label: 'Reports', icon: FileBarChart },
+  { path: '/graphics', label: 'Graphics', icon: BarChart3 },
   { path: '/balance', label: 'Balance', icon: Wallet },
   { path: '/admin', label: 'Admin', icon: Shield },
 ];

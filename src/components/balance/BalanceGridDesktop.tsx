@@ -15,6 +15,14 @@ function toMonthHeader(ym: string): string {
   return MONTH_LABELS_PT[m - 1];
 }
 
+function getMonthStatus(yearMonth: string, allMonths: string[]): 'current' | 'closed' | 'future' {
+  if (allMonths.length === 0) return 'future';
+  const latestMonth = allMonths[allMonths.length - 1];
+  if (yearMonth === latestMonth) return 'current';
+  if (yearMonth < latestMonth) return 'closed';
+  return 'future';
+}
+
 function groupByNameAndMonth(entries: { name: string; year_month: string; amount: number; id: number }[]) {
   const byName: Record<string, { byMonth: Record<string, number>; ids: number[]; yearTotal: number }> = {};
   for (const e of entries) {
@@ -26,15 +34,14 @@ function groupByNameAndMonth(entries: { name: string; year_month: string; amount
   return byName;
 }
 
-function groupWithdrawalsByPartner(withdrawals: Withdrawal[]) {
-  const byPartner: Record<string, { byMonth: Record<string, number>; yearTotal: number; ids: number[] }> = {};
+function groupWithdrawalsByMonth(withdrawals: Withdrawal[]) {
+  const byMonth: Record<string, { amount: number; ids: number[] }> = {};
   for (const w of withdrawals) {
-    if (!byPartner[w.partner_id]) byPartner[w.partner_id] = { byMonth: {}, yearTotal: 0, ids: [] };
-    byPartner[w.partner_id].byMonth[w.year_month] = (byPartner[w.partner_id].byMonth[w.year_month] ?? 0) + Number(w.amount ?? 0);
-    byPartner[w.partner_id].yearTotal += Number(w.amount ?? 0);
-    byPartner[w.partner_id].ids.push(w.id);
+    if (!byMonth[w.year_month]) byMonth[w.year_month] = { amount: 0, ids: [] };
+    byMonth[w.year_month].amount += Number(w.amount ?? 0);
+    byMonth[w.year_month].ids.push(w.id);
   }
-  return byPartner;
+  return byMonth;
 }
 
 /**
@@ -104,9 +111,17 @@ export function BalanceGridDesktop({
   const withdrawals = Array.isArray(data.withdrawals) ? data.withdrawals : [];
   const partners = Array.isArray(data.partners) ? data.partners : [];
 
+  // Debug logging for expenses
+  console.log('Balance Debug - Fixed Expenses:', fixedExpenses);
+  console.log('Balance Debug - Variable Expenses:', variableExpenses);
+
   const fixedByName = groupByNameAndMonth(fixedExpenses);
   const variableByName = groupByNameAndMonth(variableExpenses);
-  const withdrawalsByPartner = groupWithdrawalsByPartner(withdrawals);
+  const withdrawalsByMonth = groupWithdrawalsByMonth(withdrawals);
+  
+  console.log('Balance Debug - Fixed By Name:', fixedByName);
+  console.log('Balance Debug - Variable By Name:', variableByName);
+  console.log('Balance Debug - Withdrawals By Month:', withdrawalsByMonth);
 
   const productRows = buildProductRows(data, sortOrder);
 
@@ -118,18 +133,14 @@ export function BalanceGridDesktop({
   const netTotal = initialCash + revenueTotal - expenseTotal - withdrawalTotal;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* SUMMARY - Now at the top */}
       <Card className="bg-gradient-to-br from-card to-muted/20">
-        <CardHeader className="py-3">
+        <CardHeader className="py-2">
           <CardTitle className="text-base">SUMMARY</CardTitle>
         </CardHeader>
         <CardContent className="py-2">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="p-3 rounded-lg bg-card border">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Initial Cash</p>
-              <p className="text-lg font-bold tabular-nums">{formatCurrency(initialCash)}</p>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="p-3 rounded-lg bg-card border">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Revenue</p>
               <p className="text-lg font-bold tabular-nums">{formatCurrency(revenueTotal)}</p>
@@ -159,7 +170,7 @@ export function BalanceGridDesktop({
 
       {/* PRODUCTS */}
       <Card>
-        <CardHeader className="py-3">
+        <CardHeader className="py-2">
           <CardTitle className="text-base">PRODUCTS</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -168,11 +179,19 @@ export function BalanceGridDesktop({
               <thead>
                 <tr className="border-b bg-muted/40">
                   <th className="py-1.5 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Product</th>
-                  {months.map((m) => (
-                    <th key={m} className="py-1.5 px-1 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      {toMonthHeader(m)}
-                    </th>
-                  ))}
+                  {months.map((m) => {
+                    const status = getMonthStatus(m, months);
+                    return (
+                      <th 
+                        key={m} 
+                        className={`py-1.5 px-1 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide ${
+                          status === 'current' ? 'italic' : ''
+                        } ${status === 'closed' ? 'bg-green-50 dark:bg-green-950/20' : ''}`}
+                      >
+                        {toMonthHeader(m)}
+                      </th>
+                    );
+                  })}
                   <th className="py-1.5 px-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</th>
                 </tr>
               </thead>
@@ -184,19 +203,50 @@ export function BalanceGridDesktop({
                     </td>
                   </tr>
                 ) : (
-                  productRows.map((r) => (
-                    <tr key={r.key} className={r.isGroup ? 'bg-muted/30' : 'hover:bg-muted/20'}>
-                      <td className={`py-1.5 px-2 ${r.isGroup ? 'font-semibold' : 'font-medium'}`}>{r.label}</td>
-                      {months.map((m) => (
-                        <td key={m} className="py-1.5 px-1 text-right tabular-nums">
-                          {r.byMonth[m] ? formatCurrency(r.byMonth[m]) : <span className="text-muted-foreground/40">—</span>}
+                  <>
+                    {productRows.map((r) => (
+                      <tr key={r.key} className={r.isGroup ? 'bg-muted/30' : 'hover:bg-muted/20'}>
+                        <td className={`py-1.5 px-2 ${r.isGroup ? 'font-semibold' : 'font-medium'}`}>{r.label}</td>
+                        {months.map((m) => {
+                          const status = getMonthStatus(m, months);
+                          return (
+                            <td 
+                              key={m} 
+                              className={`py-1.5 px-1 text-right tabular-nums ${
+                                status === 'current' ? 'italic' : ''
+                              } ${status === 'closed' ? 'bg-green-50 dark:bg-green-950/20' : ''}`}
+                            >
+                              {r.byMonth[m] ? formatCurrency(r.byMonth[m]) : <span className="text-muted-foreground/40">—</span>}
+                            </td>
+                          );
+                        })}
+                        <td className="py-1.5 px-2 text-right font-semibold tabular-nums">
+                          {r.total > 0 ? formatCurrency(r.total) : <span className="text-muted-foreground/40">—</span>}
                         </td>
-                      ))}
-                      <td className="py-1.5 px-2 text-right font-semibold tabular-nums">
-                        {r.total > 0 ? formatCurrency(r.total) : <span className="text-muted-foreground/40">—</span>}
+                      </tr>
+                    ))}
+                    {/* TOTAL ROW */}
+                    <tr className="border-t-2 border-border bg-muted/50">
+                      <td className="py-2 px-2 font-bold text-sm">TOTAL</td>
+                      {months.map((m) => {
+                        const monthTotal = productRows.reduce((sum, r) => sum + (r.byMonth[m] || 0), 0);
+                        const status = getMonthStatus(m, months);
+                        return (
+                          <td 
+                            key={m} 
+                            className={`py-2 px-1 text-right font-bold tabular-nums ${
+                              status === 'current' ? 'italic' : ''
+                            } ${status === 'closed' ? 'bg-green-50 dark:bg-green-950/20' : ''}`}
+                          >
+                            {monthTotal > 0 ? formatCurrency(monthTotal) : <span className="text-muted-foreground/40">—</span>}
+                          </td>
+                        );
+                      })}
+                      <td className="py-2 px-2 text-right font-bold tabular-nums">
+                        {formatCurrency(revenueTotal)}
                       </td>
                     </tr>
-                  ))
+                  </>
                 )}
               </tbody>
             </table>
@@ -206,7 +256,7 @@ export function BalanceGridDesktop({
 
       {/* EXPENSES */}
       <Card>
-        <CardHeader className="py-3 flex flex-row items-center justify-between space-y-0">
+        <CardHeader className="py-2 flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">EXPENSES</CardTitle>
           <Button size="sm" variant="outline" onClick={onAddExpense}>
             <Plus className="h-4 w-4 mr-1" />Add
@@ -312,7 +362,7 @@ export function BalanceGridDesktop({
 
       {/* WITHDRAWALS */}
       <Card>
-        <CardHeader className="py-3 flex flex-row items-center justify-between space-y-0">
+        <CardHeader className="py-2 flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">WITHDRAWALS</CardTitle>
           <Button size="sm" variant="outline" onClick={onAddWithdrawal}>
             <Plus className="h-4 w-4 mr-1" />Add
@@ -323,7 +373,7 @@ export function BalanceGridDesktop({
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b bg-muted/40">
-                  <th className="py-1.5 px-2 text-xs font-medium text-muted-foreground uppercase">Partner</th>
+                  <th className="py-1.5 px-2 text-xs font-medium text-muted-foreground uppercase">Withdrawal</th>
                   {months.map((m) => (
                     <th key={m} className="py-1.5 px-1 text-right text-xs font-medium text-muted-foreground uppercase">{toMonthHeader(m)}</th>
                   ))}
@@ -332,34 +382,31 @@ export function BalanceGridDesktop({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {partners.length === 0 ? (
-                  <tr><td colSpan={months.length + 3} className="py-4 text-center text-muted-foreground text-xs">No partners configured.</td></tr>
+                {withdrawals.length === 0 ? (
+                  <tr><td colSpan={months.length + 3} className="py-4 text-center text-muted-foreground text-xs">No withdrawals.</td></tr>
                 ) : (
-                  partners.map((p) => {
-                    const agg = withdrawalsByPartner[p.id] || { byMonth: {}, yearTotal: 0 };
-                    const first = withdrawals.find((w) => w.partner_id === p.id);
-                    return (
-                      <tr key={p.id} className="hover:bg-muted/20">
-                        <td className="py-1.5 px-2 font-medium">{p.name.toUpperCase()}</td>
-                        {months.map((m) => (
-                          <td key={m} className="py-1.5 px-1 text-right tabular-nums">
-                            {agg.byMonth[m] ? formatCurrency(agg.byMonth[m]) : <span className="text-muted-foreground/40">—</span>}
-                          </td>
-                        ))}
-                        <td className="py-1.5 px-2 text-right font-semibold tabular-nums">
-                          {agg.yearTotal > 0 ? formatCurrency(agg.yearTotal) : <span className="text-muted-foreground/40">—</span>}
+                  <tr className="hover:bg-muted/20">
+                    <td className="py-1.5 px-2 font-medium">SHARED WITHDRAWALS</td>
+                    {months.map((m) => {
+                      const monthData = withdrawalsByMonth[m];
+                      return (
+                        <td key={m} className="py-1.5 px-1 text-right tabular-nums">
+                          {monthData && monthData.amount > 0 ? formatCurrency(monthData.amount) : <span className="text-muted-foreground/40">—</span>}
                         </td>
-                        <td className="py-1.5 px-1">
-                          {first && (
-                            <div className="flex items-center gap-0.5 justify-end">
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditWithdrawal(first)}><Edit2 className="h-3 w-3" /></Button>
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDeleteWithdrawal(first.id)}><Trash2 className="h-3 w-3" /></Button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
+                      );
+                    })}
+                    <td className="py-1.5 px-2 text-right font-semibold tabular-nums">
+                      {withdrawalTotal > 0 ? formatCurrency(withdrawalTotal) : <span className="text-muted-foreground/40">—</span>}
+                    </td>
+                    <td className="py-1.5 px-1">
+                      {withdrawals.length > 0 && (
+                        <div className="flex items-center gap-0.5 justify-end">
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditWithdrawal(withdrawals[0])}><Edit2 className="h-3 w-3" /></Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDeleteWithdrawal(withdrawals[0].id)}><Trash2 className="h-3 w-3" /></Button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>

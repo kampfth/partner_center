@@ -181,3 +181,35 @@ export async function setInitialCash(year: number, amount: number, note?: string
 export async function deleteInitialCash(year: number): Promise<{ success: boolean }> {
   return post<{ success: boolean }>('action=delete_initial_cash', { year });
 }
+
+// Analytics / Charts
+export interface SalesByWeekday {
+  day_of_week: number;
+  day_name: string;
+  total_sales: number;
+  units: number;
+}
+
+export interface SalesByTimeBucket {
+  time_bucket: string;
+  total_sales: number;
+  units: number;
+}
+
+export interface SalesByMsfsVersion {
+  version: string;
+  total_sales: number;
+  units: number;
+}
+
+export async function fetchSalesByWeekday(startDate: string, endDate: string): Promise<SalesByWeekday[]> {
+  return get<SalesByWeekday[]>(`action=sales_by_weekday&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`);
+}
+
+export async function fetchSalesByTimeBucket(startDate: string, endDate: string): Promise<SalesByTimeBucket[]> {
+  return get<SalesByTimeBucket[]>(`action=sales_by_time_bucket&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`);
+}
+
+export async function fetchSalesByMsfsVersion(startDate: string, endDate: string): Promise<SalesByMsfsVersion[]> {
+  return get<SalesByMsfsVersion[]>(`action=sales_by_msfs_version&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`);
+}

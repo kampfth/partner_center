@@ -9,9 +9,8 @@ import { PageSkeleton } from "./components/ui/skeleton";
 
 // Lazy load pages for better performance
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
-const ProductsPage = lazy(() => import("./pages/ProductsPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
-const ReportPage = lazy(() => import("./pages/ReportPage"));
+const GraphicsPage = lazy(() => import("./pages/GraphicsPage"));
 const BalancePage = lazy(() => import("./pages/BalancePage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -49,18 +48,10 @@ const App = () => (
               }
             />
             <Route
-              path="/products"
+              path="/graphics"
               element={
                 <Suspense fallback={<PageLoader />}>
-                  <ProductsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/report"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <ReportPage />
+                  <GraphicsPage />
                 </Suspense>
               }
             />

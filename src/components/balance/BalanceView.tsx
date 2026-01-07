@@ -28,7 +28,7 @@ export function BalanceView({
   onDeleteWithdrawal: (id: number) => void;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Mobile: month-at-a-time + accordion */}
       <div className="block lg:hidden">
         <BalanceListMobile

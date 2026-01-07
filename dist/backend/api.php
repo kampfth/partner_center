@@ -692,7 +692,8 @@ try {
             $yearMonth = requireString($data, 'yearMonth', 7, 7);
             if (!preg_match('/^\d{4}-\d{2}$/', $yearMonth)) throw new Exception('Invalid yearMonth format');
             
-            $partnerId = requireString($data, 'partnerId', 1, 50);
+            // Partner ID is now optional/null for shared withdrawals
+            $partnerId = isset($data['partnerId']) && trim($data['partnerId']) !== '' ? trim($data['partnerId']) : null;
             $amount = floatval($data['amount'] ?? 0);
             if ($amount <= 0) throw new Exception('Amount must be positive');
             
@@ -721,7 +722,8 @@ try {
             $yearMonth = requireString($data, 'yearMonth', 7, 7);
             if (!preg_match('/^\d{4}-\d{2}$/', $yearMonth)) throw new Exception('Invalid yearMonth format');
             
-            $partnerId = requireString($data, 'partnerId', 1, 50);
+            // Partner ID is now optional/null for shared withdrawals
+            $partnerId = isset($data['partnerId']) && trim($data['partnerId']) !== '' ? trim($data['partnerId']) : null;
             $amount = floatval($data['amount'] ?? 0);
             if ($amount <= 0) throw new Exception('Amount must be positive');
             
@@ -850,6 +852,119 @@ try {
             if ($resp['code'] >= 400) throw new Exception('Failed to update partners: ' . $resp['body']);
             
             echo $resp['body'];
+            break;
+
+        case 'sales_by_weekday':
+            $startDate = isset($_GET['start']) ? trim($_GET['start']) : null;
+            $endDate = isset($_GET['end']) ? trim($_GET['end']) : null;
+            if (!$startDate || !$endDate) throw new Exception('start and end date required');
+            
+            // Query to get sales grouped by day of week
+            $query = "
+                SELECT 
+                    EXTRACT(DOW FROM transaction_date) as day_of_week,
+                    SUM(transaction_amount) as total_sales,
+                    COUNT(*) as units
+                FROM transactions
+                WHERE transaction_date >= '$startDate' AND transaction_date < ('$endDate'::date + interval '1 day')
+                GROUP BY EXTRACT(DOW FROM transaction_date)
+                ORDER BY day_of_week
+            ";
+            
+            $resp = $supabase->raw($query);
+            if ($resp['code'] !== 200) throw new Exception('Failed to fetch weekday sales');
+            
+            $decoded = json_decode($resp['body'], true);
+            if (!is_array($decoded)) $decoded = [];
+            
+            // Map day numbers to names (0 = Sunday, 6 = Saturday)
+            $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            $result = [];
+            foreach ($decoded as $row) {
+                $dayNum = intval($row['day_of_week']);
+                $result[] = [
+                    'day_of_week' => $dayNum,
+                    'day_name' => $dayNames[$dayNum],
+                    'total_sales' => floatval($row['total_sales']),
+                    'units' => intval($row['units'])
+                ];
+            }
+            
+            echo json_encode($result);
+            break;
+
+        case 'sales_by_time_bucket':
+            $startDate = isset($_GET['start']) ? trim($_GET['start']) : null;
+            $endDate = isset($_GET['end']) ? trim($_GET['end']) : null;
+            if (!$startDate || !$endDate) throw new Exception('start and end date required');
+            
+            // Query to get sales grouped by 4-hour time buckets (UTC)
+            $query = "
+                SELECT 
+                    FLOOR(EXTRACT(HOUR FROM transaction_date) / 4) as bucket_num,
+                    SUM(transaction_amount) as total_sales,
+                    COUNT(*) as units
+                FROM transactions
+                WHERE transaction_date >= '$startDate' AND transaction_date < ('$endDate'::date + interval '1 day')
+                GROUP BY bucket_num
+                ORDER BY bucket_num
+            ";
+            
+            $resp = $supabase->raw($query);
+            if ($resp['code'] !== 200) throw new Exception('Failed to fetch time bucket sales');
+            
+            $decoded = json_decode($resp['body'], true);
+            if (!is_array($decoded)) $decoded = [];
+            
+            // Map bucket numbers to time ranges
+            $bucketLabels = ['00-04', '04-08', '08-12', '12-16', '16-20', '20-24'];
+            $result = [];
+            foreach ($decoded as $row) {
+                $bucketNum = intval($row['bucket_num']);
+                $result[] = [
+                    'time_bucket' => $bucketLabels[$bucketNum],
+                    'total_sales' => floatval($row['total_sales']),
+                    'units' => intval($row['units'])
+                ];
+            }
+            
+            echo json_encode($result);
+            break;
+
+        case 'sales_by_msfs_version':
+            $startDate = isset($_GET['start']) ? trim($_GET['start']) : null;
+            $endDate = isset($_GET['end']) ? trim($_GET['end']) : null;
+            if (!$startDate || !$endDate) throw new Exception('start and end date required');
+            
+            // Query to get sales grouped by MSFS version
+            $query = "
+                SELECT 
+                    COALESCE(p.msfs_version, 'Unknown') as version,
+                    SUM(t.transaction_amount) as total_sales,
+                    COUNT(*) as units
+                FROM transactions t
+                JOIN products p ON t.product_id = p.product_id
+                WHERE t.transaction_date >= '$startDate' AND t.transaction_date < ('$endDate'::date + interval '1 day')
+                GROUP BY p.msfs_version
+                ORDER BY total_sales DESC
+            ";
+            
+            $resp = $supabase->raw($query);
+            if ($resp['code'] !== 200) throw new Exception('Failed to fetch MSFS version sales');
+            
+            $decoded = json_decode($resp['body'], true);
+            if (!is_array($decoded)) $decoded = [];
+            
+            $result = [];
+            foreach ($decoded as $row) {
+                $result[] = [
+                    'version' => $row['version'],
+                    'total_sales' => floatval($row['total_sales']),
+                    'units' => intval($row['units'])
+                ];
+            }
+            
+            echo json_encode($result);
             break;
 
         default:

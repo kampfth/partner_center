@@ -50,7 +50,7 @@ export interface Expense {
 export interface Withdrawal {
   id: number;
   year_month: string;
-  partner_id: string;
+  partner_id: string | null;
   amount: number;
   note?: string;
   created_at?: string;
@@ -107,7 +107,6 @@ export interface UpdateExpensePayload {
 
 export interface CreateWithdrawalPayload {
   yearMonth: string;
-  partnerId: string;
   amount: number;
   note?: string;
 }
@@ -115,7 +114,6 @@ export interface CreateWithdrawalPayload {
 export interface UpdateWithdrawalPayload {
   id: number;
   yearMonth: string;
-  partnerId: string;
   amount: number;
   note?: string;
 }
