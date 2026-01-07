@@ -16,6 +16,12 @@ Private sales dashboard (PHP backend + static frontend build) backed by Supabase
    - `/backend/secrets.php`
 3. After setup, `backend/.htaccess` blocks access to `setup.php`.
 
+If you prefer generating `.env` locally, use:
+
+```bash
+python scripts/create_env.py --url https://YOUR_PROJECT.supabase.co --service-role-key YOUR_KEY --out .env --force
+```
+
 ## Supabase lockdown
 
 Run the SQL in `docs/supabase_lockdown.sql` in Supabase SQL Editor to ensure **anon/authenticated roles cannot access data** (RLS + privilege revoke).
