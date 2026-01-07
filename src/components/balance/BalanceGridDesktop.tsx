@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import type { BalanceResponse, Expense, Withdrawal, Partner } from '@/types';
 import { formatCurrency, formatPercent, MONTH_LABELS_PT } from './balanceFormat';
 import { Edit2, Trash2, Plus } from 'lucide-react';
@@ -47,16 +48,27 @@ function groupByNameAndMonth(entries: { name: string; year_month: string; amount
 /**
  * Agrupa withdrawals por parceiro
  * Cada withdrawal tem partner_id que corresponde ao id do partner
+ * Retorna também os IDs por mês para permitir edição/exclusão
  */
 function buildWithdrawalsByPartner(
   withdrawals: Withdrawal[],
   partners: Partner[]
-): Record<string, { byMonth: Record<string, number>; yearTotal: number; withdrawalIds: number[] }> {
-  const result: Record<string, { byMonth: Record<string, number>; yearTotal: number; withdrawalIds: number[] }> = {};
+): Record<string, { 
+  byMonth: Record<string, number>; 
+  idsByMonth: Record<string, number[]>; 
+  yearTotal: number; 
+  withdrawalIds: number[] 
+}> {
+  const result: Record<string, { 
+    byMonth: Record<string, number>; 
+    idsByMonth: Record<string, number[]>; 
+    yearTotal: number; 
+    withdrawalIds: number[] 
+  }> = {};
   
   // Inicializa para todos os partners
   for (const partner of partners) {
-    result[partner.id] = { byMonth: {}, yearTotal: 0, withdrawalIds: [] };
+    result[partner.id] = { byMonth: {}, idsByMonth: {}, yearTotal: 0, withdrawalIds: [] };
   }
   
   // Agrupa withdrawals
@@ -78,6 +90,12 @@ function buildWithdrawalsByPartner(
       result[targetId].byMonth[w.year_month] = (result[targetId].byMonth[w.year_month] || 0) + amount;
       result[targetId].yearTotal += amount;
       result[targetId].withdrawalIds.push(w.id);
+      
+      // Guarda IDs por mês para edição/exclusão
+      if (!result[targetId].idsByMonth[w.year_month]) {
+        result[targetId].idsByMonth[w.year_month] = [];
+      }
+      result[targetId].idsByMonth[w.year_month].push(w.id);
     }
   }
   
@@ -355,36 +373,79 @@ export function BalanceGridDesktop({
                     <th key={m} className="py-1.5 px-1 text-right text-xs font-medium text-muted-foreground uppercase">{toMonthHeader(m)}</th>
                   ))}
                   <th className="py-1.5 px-2 text-right text-xs font-medium text-muted-foreground uppercase">Total</th>
-                  <th className="py-1.5 px-1 w-16"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
                 {partners.length === 0 ? (
-                  <tr><td colSpan={months.length + 3} className="py-4 text-center text-muted-foreground text-xs">No partners configured.</td></tr>
+                  <tr><td colSpan={months.length + 2} className="py-4 text-center text-muted-foreground text-xs">No partners configured.</td></tr>
                 ) : (
                   partners.map((partner) => {
-                    const partnerData = withdrawalsByPartner[partner.id] || { byMonth: {}, yearTotal: 0, withdrawalIds: [] };
-                    // Encontra o primeiro withdrawal deste partner para edição/exclusão
-                    const firstWithdrawal = withdrawals.find((w) => w.partner_id === partner.id);
+                    const partnerData = withdrawalsByPartner[partner.id] || { byMonth: {}, idsByMonth: {}, yearTotal: 0, withdrawalIds: [] };
                     
                     return (
                       <tr key={partner.id} className="hover:bg-muted/20">
                         <td className="py-1.5 px-2 font-medium">{partner.name.toUpperCase()}</td>
-                        {months.map((m) => (
-                          <td key={m} className="py-1.5 px-1 text-right tabular-nums">
-                            {partnerData.byMonth[m] ? formatCurrency(partnerData.byMonth[m]) : <span className="text-muted-foreground/40">—</span>}
-                          </td>
-                        ))}
+                        {months.map((m) => {
+                          const monthAmount = partnerData.byMonth[m];
+                          const monthIds = partnerData.idsByMonth[m] || [];
+                          
+                          // Se não tem valor, mostra travessão
+                          if (!monthAmount) {
+                            return (
+                              <td key={m} className="py-1.5 px-1 text-right tabular-nums">
+                                <span className="text-muted-foreground/40">—</span>
+                              </td>
+                            );
+                          }
+                          
+                          // Encontra o withdrawal para este mês (pega o primeiro ID)
+                          const withdrawalForMonth = monthIds.length > 0 
+                            ? withdrawals.find((w) => w.id === monthIds[0])
+                            : null;
+                          
+                          return (
+                            <td key={m} className="py-1.5 px-1 text-right tabular-nums">
+                              <HoverCard openDelay={100} closeDelay={100}>
+                                <HoverCardTrigger asChild>
+                                  <span className="cursor-pointer hover:text-primary hover:underline transition-colors">
+                                    {formatCurrency(monthAmount)}
+                                  </span>
+                                </HoverCardTrigger>
+                                <HoverCardContent className="w-auto p-2" align="center">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground mr-2">
+                                      {toMonthHeader(m)}: {formatCurrency(monthAmount)}
+                                    </span>
+                                    {withdrawalForMonth && (
+                                      <>
+                                        <Button 
+                                          variant="outline" 
+                                          size="sm" 
+                                          className="h-7 px-2"
+                                          onClick={() => onEditWithdrawal(withdrawalForMonth)}
+                                        >
+                                          <Edit2 className="h-3 w-3 mr-1" />
+                                          Edit
+                                        </Button>
+                                        <Button 
+                                          variant="destructive" 
+                                          size="sm" 
+                                          className="h-7 px-2"
+                                          onClick={() => onDeleteWithdrawal(withdrawalForMonth.id)}
+                                        >
+                                          <Trash2 className="h-3 w-3 mr-1" />
+                                          Delete
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </HoverCardContent>
+                              </HoverCard>
+                            </td>
+                          );
+                        })}
                         <td className="py-1.5 px-2 text-right font-semibold tabular-nums">
                           {partnerData.yearTotal > 0 ? formatCurrency(partnerData.yearTotal) : <span className="text-muted-foreground/40">—</span>}
-                        </td>
-                        <td className="py-1.5 px-1">
-                          {firstWithdrawal && (
-                            <div className="flex items-center gap-0.5 justify-end">
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEditWithdrawal(firstWithdrawal)}><Edit2 className="h-3 w-3" /></Button>
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDeleteWithdrawal(firstWithdrawal.id)}><Trash2 className="h-3 w-3" /></Button>
-                            </div>
-                          )}
                         </td>
                       </tr>
                     );
