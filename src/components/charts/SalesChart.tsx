@@ -18,14 +18,24 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
+}
+
+function formatYAxis(value: number): string {
+  if (value >= 1000000) {
+    return `$${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `$${(value / 1000).toFixed(1)}k`;
+  }
+  return `$${value.toFixed(0)}`;
 }
 
 export default function SalesChart({ data }: { data: ChartData[] }) {
   return (
-    <div className="h-[200px] sm:h-[280px] -ml-2">
+    <div className="h-[200px] sm:h-[240px] -ml-2">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
           <defs>
@@ -54,8 +64,8 @@ export default function SalesChart({ data }: { data: ChartData[] }) {
             fontSize={11}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-            width={48}
+            tickFormatter={formatYAxis}
+            width={52}
           />
           <Tooltip
             contentStyle={{

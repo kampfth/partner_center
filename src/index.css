@@ -194,3 +194,21 @@
     @apply outline-none ring-2 ring-primary/40 ring-offset-0;
   }
 }
+
+/* Date input - white calendar icon */
+@layer utilities {
+  .date-input-white::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+    opacity: 0.7;
+  }
+
+  .date-input-white::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+
+  /* Firefox support */
+  .date-input-white {
+    color-scheme: dark;
+  }
+}

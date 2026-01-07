@@ -81,17 +81,69 @@ export async function post<T>(endpoint: string, body: unknown): Promise<T> {
   return handleResponse<T>(response);
 }
 
-export async function upload<T>(file: File): Promise<T> {
-  const formData = new FormData();
-  formData.append('file', file);
+export type ProgressCallback = (progress: number) => void;
 
-  const response = await fetch(UPLOAD_URL, {
-    method: 'POST',
-    credentials: 'include',
-    body: formData,
+export async function upload<T>(file: File, onProgress?: ProgressCallback): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    xhr.open('POST', UPLOAD_URL);
+    xhr.withCredentials = true;
+
+    // Track upload progress
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable && onProgress) {
+        const percentComplete = Math.round((event.loaded / event.total) * 100);
+        onProgress(percentComplete);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 401 || xhr.status === 403) {
+        window.location.href = LOGIN_URL;
+        reject(new ApiError('Session expired. Redirecting to login...', 401));
+        return;
+      }
+
+      const text = xhr.responseText;
+
+      if (isHtmlResponse(text)) {
+        window.location.href = LOGIN_URL;
+        reject(new ApiError('Session expired. Redirecting to login...', 401));
+        return;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(text) as T;
+          resolve(data);
+        } catch {
+          reject(new ApiError('Invalid JSON response from server'));
+        }
+      } else {
+        let errorMessage = 'An error occurred';
+        try {
+          const errorData = JSON.parse(text);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          errorMessage = text || xhr.statusText;
+        }
+        reject(new ApiError(errorMessage, xhr.status));
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      reject(new ApiError('Network error occurred'));
+    });
+
+    xhr.addEventListener('abort', () => {
+      reject(new ApiError('Upload aborted'));
+    });
+
+    xhr.send(formData);
   });
-
-  return handleResponse<T>(response);
 }
 
 export { ApiError };

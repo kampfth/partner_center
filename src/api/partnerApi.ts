@@ -1,4 +1,4 @@
-import { get, post, upload } from './apiClient';
+import { get, post, upload, type ProgressCallback } from './apiClient';
 import type {
   Product,
   Group,
@@ -72,6 +72,6 @@ export async function resetAll(): Promise<{ success: boolean }> {
   return post<{ success: boolean }>('action=reset_all', {});
 }
 
-export async function uploadFile(file: File): Promise<UploadResponse> {
-  return upload<UploadResponse>(file);
+export async function uploadFile(file: File, onProgress?: ProgressCallback): Promise<UploadResponse> {
+  return upload<UploadResponse>(file, onProgress);
 }

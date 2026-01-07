@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Upload, FileUp, CheckCircle2, XCircle, File } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { uploadFile } from '@/api/partnerApi';
 import { useToast } from '@/hooks/use-toast';
 import type { UploadResponse } from '@/types';
@@ -9,6 +10,7 @@ import type { UploadResponse } from '@/types';
 export function UploadTab() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<UploadResponse | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -28,6 +30,7 @@ export function UploadTab() {
       }
       setFile(selectedFile);
       setResult(null);
+      setProgress(0);
     }
   };
 
@@ -36,8 +39,12 @@ export function UploadTab() {
 
     setUploading(true);
     setResult(null);
+    setProgress(0);
+    
     try {
-      const response = await uploadFile(file);
+      const response = await uploadFile(file, (percent) => {
+        setProgress(percent);
+      });
       setResult(response);
       toast({
         title: 'Upload Complete',
@@ -57,6 +64,7 @@ export function UploadTab() {
   const clearFile = () => {
     setFile(null);
     setResult(null);
+    setProgress(0);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -92,25 +100,41 @@ export function UploadTab() {
               </p>
             </div>
           ) : (
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div className="flex items-center gap-3">
-                <File className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="font-medium">{file.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="flex items-center gap-3">
+                  <File className="h-8 w-8 text-primary" />
+                  <div>
+                    <p className="font-medium">{file.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={clearFile} disabled={uploading}>
+                    Remove
+                  </Button>
+                  <Button size="sm" onClick={handleUpload} disabled={uploading}>
+                    <FileUp className="mr-2 h-4 w-4" />
+                    {uploading ? 'Uploading...' : 'Upload'}
+                  </Button>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={clearFile}>
-                  Remove
-                </Button>
-                <Button size="sm" onClick={handleUpload} disabled={uploading}>
-                  <FileUp className="mr-2 h-4 w-4" />
-                  {uploading ? 'Uploading...' : 'Upload'}
-                </Button>
-              </div>
+
+              {/* Progress Bar */}
+              {uploading && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Uploading...</span>
+                    <span className="font-medium tabular-nums">{progress}%</span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                  {progress === 100 && (
+                    <p className="text-sm text-muted-foreground">Processing file on server...</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </CardContent>
