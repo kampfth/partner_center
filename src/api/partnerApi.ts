@@ -7,7 +7,6 @@ import type {
   UploadResponse,
   SortOrder,
   ProductUpdate,
-  AddProductPayload,
   CreateGroupPayload,
   BalanceResponse,
   Expense,
@@ -50,15 +49,6 @@ export async function fetchReport(start: string, end: string): Promise<ReportRes
   return get<ReportResponse>(`action=report&start=${start}&end=${end}`);
 }
 
-export async function addProduct(
-  productId: string,
-  productName: string,
-  lever: string
-): Promise<Product> {
-  const payload: AddProductPayload = { productId, productName, lever };
-  return post<Product>('action=add_product', payload);
-}
-
 export async function fetchLoginHistory(): Promise<AuditLog[]> {
   return get<AuditLog[]>('action=get_login_history');
 }
@@ -97,23 +87,6 @@ export interface DateRange {
 
 export async function fetchDateRange(): Promise<DateRange> {
   return get<DateRange>('action=date_range');
-}
-
-// Available products (from transactions but not yet tracked)
-export interface AvailableProduct {
-  product_id: string;
-  product_name: string;
-  lever: string;
-  transaction_count: number;
-  total_amount: number;
-}
-
-export async function fetchAvailableProducts(): Promise<AvailableProduct[]> {
-  return get<AvailableProduct[]>('action=available_products');
-}
-
-export async function removeProduct(product_id: string): Promise<{ success: boolean }> {
-  return post<{ success: boolean }>('action=remove_product', { product_id });
 }
 
 // Balance API functions
@@ -212,4 +185,27 @@ export async function fetchSalesByTimeBucket(startDate: string, endDate: string)
 
 export async function fetchSalesByMsfsVersion(startDate: string, endDate: string): Promise<SalesByMsfsVersion[]> {
   return get<SalesByMsfsVersion[]>(`action=sales_by_msfs_version&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`);
+}
+
+// All Products Management
+export interface AllProduct {
+  id: number;
+  product_id: string;
+  product_name: string;
+  lever: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  is_tracked: boolean;
+}
+
+export async function fetchAllProducts(): Promise<AllProduct[]> {
+  return get<AllProduct[]>('action=all_products');
+}
+
+export async function trackProduct(productId: string): Promise<{ success: boolean; message: string }> {
+  return post<{ success: boolean; message: string }>('action=track_product', { product_id: productId });
+}
+
+export async function untrackProduct(productId: string): Promise<{ success: boolean; message: string }> {
+  return post<{ success: boolean; message: string }>('action=untrack_product', { product_id: productId });
 }

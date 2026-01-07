@@ -18,8 +18,3 @@ export interface ProductUpdate {
   group_id: string | null;
 }
 
-export interface AddProductPayload {
-  productId: string;
-  productName: string;
-  lever: string;
-}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Check } from 'lucide-react';
+import { Plus, Trash2, Check, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ export function GroupManagementTab() {
   const [groupName, setGroupName] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
 
   const loadData = async () => {
@@ -95,6 +96,12 @@ export function GroupManagementTab() {
   };
 
   const ungroupedProducts = products.filter((p) => p.group_id === null);
+  
+  // Filter products by search term
+  const filteredProducts = ungroupedProducts.filter((p) => 
+    p.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.label && p.label.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   if (loading) {
     return <LoadingState message="Loading products and groups..." />;
@@ -126,9 +133,18 @@ export function GroupManagementTab() {
 
           <div className="space-y-2">
             <Label>Select Products ({selectedProducts.size} selected)</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 mb-2"
+              />
+            </div>
             <div className="max-h-[300px] overflow-auto rounded-md border p-4 space-y-2">
-              {ungroupedProducts.length > 0 ? (
-                ungroupedProducts.map((product) => (
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((product) => (
                   <div
                     key={product.product_id}
                     className="flex items-center space-x-3 rounded-md p-2 hover:bg-accent/50"
@@ -153,7 +169,7 @@ export function GroupManagementTab() {
                 ))
               ) : (
                 <p className="py-4 text-center text-muted-foreground">
-                  All products are already grouped
+                  {searchTerm ? 'No products found matching search' : 'All products are already grouped'}
                 </p>
               )}
             </div>

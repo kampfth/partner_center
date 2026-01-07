@@ -264,7 +264,31 @@ export default function GraphicsPage() {
         </div>
       </div>
 
-      {/* Charts side by side */}
+      {/* 1. MSFS 2020 vs 2024 - First */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">MSFS 2020 vs 2024</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingCharts || initializing ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Skeleton className="h-24" />
+                <Skeleton className="h-24" />
+              </div>
+              <Skeleton className="h-3 w-full" />
+            </div>
+          ) : msfsVersionData.length > 0 ? (
+            <Suspense fallback={<div className="h-32"><ChartSkeleton /></div>}>
+              <MsfsComparisonCard data={msfsVersionData} />
+            </Suspense>
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">No data available</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 2. Daily Sales / Product Distribution */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Daily Sales Bar Chart */}
       <Card>
@@ -305,73 +329,46 @@ export default function GraphicsPage() {
         </Card>
       </div>
 
-      {/* Sales Patterns Section */}
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Sales Patterns</h2>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {/* Weekday Sales */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Sales by Day of Week</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {loadingCharts || initializing ? (
-                <ChartSkeleton />
-              ) : weekdayData.length > 0 ? (
-                <Suspense fallback={<ChartSkeleton />}>
-                  <WeekdayBarChart data={weekdayData} />
-                </Suspense>
-              ) : (
-                <p className="py-12 text-center text-sm text-muted-foreground">No data available</p>
-              )}
-            </CardContent>
-          </Card>
+      {/* 3. Sales by Day of Week / Hot Time */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Weekday Sales */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Sales by Day of Week</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {loadingCharts || initializing ? (
+              <ChartSkeleton />
+            ) : weekdayData.length > 0 ? (
+              <Suspense fallback={<ChartSkeleton />}>
+                <WeekdayBarChart data={weekdayData} />
+              </Suspense>
+            ) : (
+              <p className="py-12 text-center text-sm text-muted-foreground">No data available</p>
+            )}
+          </CardContent>
+        </Card>
 
-          {/* Hot Time */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Hot Time (UTC)</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {loadingCharts || initializing ? (
-                <ChartSkeleton />
-              ) : timeBucketData.length > 0 ? (
-                <Suspense fallback={<ChartSkeleton />}>
-                  <HotTimeChart data={timeBucketData} />
-                </Suspense>
-              ) : (
-                <p className="py-12 text-center text-sm text-muted-foreground">No data available</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        {/* Hot Time */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Hot Time (UTC)</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {loadingCharts || initializing ? (
+              <ChartSkeleton />
+            ) : timeBucketData.length > 0 ? (
+              <Suspense fallback={<ChartSkeleton />}>
+                <HotTimeChart data={timeBucketData} />
+              </Suspense>
+            ) : (
+              <p className="py-12 text-center text-sm text-muted-foreground">No data available</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* MSFS Version Comparison */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">MSFS 2020 vs 2024</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loadingCharts || initializing ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Skeleton className="h-24" />
-                <Skeleton className="h-24" />
-              </div>
-              <Skeleton className="h-3 w-full" />
-            </div>
-          ) : msfsVersionData.length > 0 ? (
-            <Suspense fallback={<div className="h-32"><ChartSkeleton /></div>}>
-              <MsfsComparisonCard data={msfsVersionData} />
-            </Suspense>
-          ) : (
-            <p className="py-8 text-center text-sm text-muted-foreground">No data available</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Product Table */}
+      {/* 4. Product Summary - Last */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Product Summary</CardTitle>

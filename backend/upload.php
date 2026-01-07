@@ -73,6 +73,8 @@ function processCsvFile($csvPath, $supabase, $whitelist, &$totalProcessed, &$tot
     $transactionsBatch = [];
     $productsBatch = [];
     $seenProducts = [];
+    $allProductsBatch = [];
+    $seenAllProducts = [];
 
     while (($row = fgetcsv($handle)) !== false) {
         $data = [];
@@ -119,11 +121,28 @@ function processCsvFile($csvPath, $supabase, $whitelist, &$totalProcessed, &$tot
             ];
             $seenProducts[$pid] = true;
         }
+        
+        // Always add to all_products for discovery (upsert will handle existing)
+        if (!isset($seenAllProducts[$pid])) {
+            $allProductsBatch[$pid] = [
+                'product_id' => $data['productId'],
+                'product_name' => $data['productName'],
+                'lever' => $data['lever'],
+                'last_seen_at' => date('c')
+            ];
+            $seenAllProducts[$pid] = true;
+        }
 
         if (count($transactionsBatch) >= $batchSize) {
             if (!empty($productsBatch)) {
                 $supabase->insert('products', array_values($productsBatch), false);
                 $productsBatch = [];
+            }
+            
+            if (!empty($allProductsBatch)) {
+                // Upsert to all_products (update last_seen_at if exists)
+                $supabase->insert('all_products', array_values($allProductsBatch), true);
+                $allProductsBatch = [];
             }
 
             $supabase->insert('transactions', $transactionsBatch, false);
@@ -137,6 +156,9 @@ function processCsvFile($csvPath, $supabase, $whitelist, &$totalProcessed, &$tot
     if (!empty($transactionsBatch)) {
         if (!empty($productsBatch)) {
             $supabase->insert('products', array_values($productsBatch), false);
+        }
+        if (!empty($allProductsBatch)) {
+            $supabase->insert('all_products', array_values($allProductsBatch), true);
         }
         $supabase->insert('transactions', $transactionsBatch, false);
         $totalInserted += count($transactionsBatch);

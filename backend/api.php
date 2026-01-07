@@ -692,16 +692,27 @@ try {
             $yearMonth = requireString($data, 'yearMonth', 7, 7);
             if (!preg_match('/^\d{4}-\d{2}$/', $yearMonth)) throw new Exception('Invalid yearMonth format');
             
-            // Partner ID is now optional/null for shared withdrawals
-            $partnerId = isset($data['partnerId']) && trim($data['partnerId']) !== '' ? trim($data['partnerId']) : null;
             $amount = floatval($data['amount'] ?? 0);
             if ($amount <= 0) throw new Exception('Amount must be positive');
             
             $note = optionalString($data, 'note', 500);
             
+            // For shared withdrawals, use a special partner_id or the first partner
+            // Get first partner as default
+            $partnersResp = $supabase->select('partners', '?order=id.asc&limit=1');
+            $defaultPartnerId = null;
+            if ($partnersResp['code'] === 200) {
+                $partners = json_decode($partnersResp['body'], true);
+                if (is_array($partners) && count($partners) > 0) {
+                    $defaultPartnerId = $partners[0]['id'];
+                }
+            }
+            
+            if (!$defaultPartnerId) throw new Exception('No partners found');
+            
             $newWithdrawal = [
                 'year_month' => $yearMonth,
-                'partner_id' => $partnerId,
+                'partner_id' => $defaultPartnerId, // Use first partner for shared withdrawals
                 'amount' => $amount,
                 'note' => $note
             ];
@@ -722,16 +733,26 @@ try {
             $yearMonth = requireString($data, 'yearMonth', 7, 7);
             if (!preg_match('/^\d{4}-\d{2}$/', $yearMonth)) throw new Exception('Invalid yearMonth format');
             
-            // Partner ID is now optional/null for shared withdrawals
-            $partnerId = isset($data['partnerId']) && trim($data['partnerId']) !== '' ? trim($data['partnerId']) : null;
             $amount = floatval($data['amount'] ?? 0);
             if ($amount <= 0) throw new Exception('Amount must be positive');
             
             $note = optionalString($data, 'note', 500);
             
+            // Get current partner_id from existing record
+            $existing = $supabase->select('balance_withdrawals', "?id=eq.$id");
+            $partnerId = null;
+            if ($existing['code'] === 200) {
+                $rows = json_decode($existing['body'], true);
+                if (is_array($rows) && count($rows) > 0) {
+                    $partnerId = $rows[0]['partner_id'];
+                }
+            }
+            
+            if (!$partnerId) throw new Exception('Withdrawal not found');
+            
             $updates = [
                 'year_month' => $yearMonth,
-                'partner_id' => $partnerId,
+                'partner_id' => $partnerId, // Keep existing partner_id
                 'amount' => $amount,
                 'note' => $note,
                 'updated_at' => date('c')
@@ -859,35 +880,38 @@ try {
             $endDate = isset($_GET['end']) ? trim($_GET['end']) : null;
             if (!$startDate || !$endDate) throw new Exception('start and end date required');
             
-            // Query to get sales grouped by day of week
-            $query = "
-                SELECT 
-                    EXTRACT(DOW FROM transaction_date) as day_of_week,
-                    SUM(transaction_amount) as total_sales,
-                    COUNT(*) as units
-                FROM transactions
-                WHERE transaction_date >= '$startDate' AND transaction_date < ('$endDate'::date + interval '1 day')
-                GROUP BY EXTRACT(DOW FROM transaction_date)
-                ORDER BY day_of_week
-            ";
+            // Fetch all transactions in date range
+            $endDatePlus = date('Y-m-d', strtotime($endDate . ' +1 day'));
+            $resp = $supabase->select('transactions', "?transaction_date=gte.$startDate&transaction_date=lt.$endDatePlus&select=transaction_date,transaction_amount");
             
-            $resp = $supabase->raw($query);
-            if ($resp['code'] !== 200) throw new Exception('Failed to fetch weekday sales');
+            if ($resp['code'] !== 200) {
+                echo json_encode([]);
+                break;
+            }
             
-            $decoded = json_decode($resp['body'], true);
-            if (!is_array($decoded)) $decoded = [];
+            $transactions = json_decode($resp['body'], true);
+            if (!is_array($transactions)) $transactions = [];
             
-            // Map day numbers to names (0 = Sunday, 6 = Saturday)
+            // Aggregate by day of week
+            $byDay = array_fill(0, 7, ['total_sales' => 0, 'units' => 0]);
+            foreach ($transactions as $tx) {
+                $dayOfWeek = intval(date('w', strtotime($tx['transaction_date'])));
+                $byDay[$dayOfWeek]['total_sales'] += floatval($tx['transaction_amount']);
+                $byDay[$dayOfWeek]['units']++;
+            }
+            
+            // Format result
             $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             $result = [];
-            foreach ($decoded as $row) {
-                $dayNum = intval($row['day_of_week']);
-                $result[] = [
-                    'day_of_week' => $dayNum,
-                    'day_name' => $dayNames[$dayNum],
-                    'total_sales' => floatval($row['total_sales']),
-                    'units' => intval($row['units'])
-                ];
+            for ($i = 0; $i < 7; $i++) {
+                if ($byDay[$i]['units'] > 0) {
+                    $result[] = [
+                        'day_of_week' => $i,
+                        'day_name' => $dayNames[$i],
+                        'total_sales' => $byDay[$i]['total_sales'],
+                        'units' => $byDay[$i]['units']
+                    ];
+                }
             }
             
             echo json_encode($result);
@@ -898,34 +922,38 @@ try {
             $endDate = isset($_GET['end']) ? trim($_GET['end']) : null;
             if (!$startDate || !$endDate) throw new Exception('start and end date required');
             
-            // Query to get sales grouped by 4-hour time buckets (UTC)
-            $query = "
-                SELECT 
-                    FLOOR(EXTRACT(HOUR FROM transaction_date) / 4) as bucket_num,
-                    SUM(transaction_amount) as total_sales,
-                    COUNT(*) as units
-                FROM transactions
-                WHERE transaction_date >= '$startDate' AND transaction_date < ('$endDate'::date + interval '1 day')
-                GROUP BY bucket_num
-                ORDER BY bucket_num
-            ";
+            // Fetch all transactions in date range
+            $endDatePlus = date('Y-m-d', strtotime($endDate . ' +1 day'));
+            $resp = $supabase->select('transactions', "?transaction_date=gte.$startDate&transaction_date=lt.$endDatePlus&select=transaction_date,transaction_amount");
             
-            $resp = $supabase->raw($query);
-            if ($resp['code'] !== 200) throw new Exception('Failed to fetch time bucket sales');
+            if ($resp['code'] !== 200) {
+                echo json_encode([]);
+                break;
+            }
             
-            $decoded = json_decode($resp['body'], true);
-            if (!is_array($decoded)) $decoded = [];
+            $transactions = json_decode($resp['body'], true);
+            if (!is_array($transactions)) $transactions = [];
             
-            // Map bucket numbers to time ranges
+            // Aggregate by 4-hour time buckets
+            $byBucket = array_fill(0, 6, ['total_sales' => 0, 'units' => 0]);
+            foreach ($transactions as $tx) {
+                $hour = intval(date('H', strtotime($tx['transaction_date'])));
+                $bucketNum = floor($hour / 4);
+                $byBucket[$bucketNum]['total_sales'] += floatval($tx['transaction_amount']);
+                $byBucket[$bucketNum]['units']++;
+            }
+            
+            // Format result
             $bucketLabels = ['00-04', '04-08', '08-12', '12-16', '16-20', '20-24'];
             $result = [];
-            foreach ($decoded as $row) {
-                $bucketNum = intval($row['bucket_num']);
-                $result[] = [
-                    'time_bucket' => $bucketLabels[$bucketNum],
-                    'total_sales' => floatval($row['total_sales']),
-                    'units' => intval($row['units'])
-                ];
+            for ($i = 0; $i < 6; $i++) {
+                if ($byBucket[$i]['units'] > 0) {
+                    $result[] = [
+                        'time_bucket' => $bucketLabels[$i],
+                        'total_sales' => $byBucket[$i]['total_sales'],
+                        'units' => $byBucket[$i]['units']
+                    ];
+                }
             }
             
             echo json_encode($result);
@@ -936,35 +964,130 @@ try {
             $endDate = isset($_GET['end']) ? trim($_GET['end']) : null;
             if (!$startDate || !$endDate) throw new Exception('start and end date required');
             
-            // Query to get sales grouped by MSFS version
-            $query = "
-                SELECT 
-                    COALESCE(p.msfs_version, 'Unknown') as version,
-                    SUM(t.transaction_amount) as total_sales,
-                    COUNT(*) as units
-                FROM transactions t
-                JOIN products p ON t.product_id = p.product_id
-                WHERE t.transaction_date >= '$startDate' AND t.transaction_date < ('$endDate'::date + interval '1 day')
-                GROUP BY p.msfs_version
-                ORDER BY total_sales DESC
-            ";
+            // Fetch all transactions with products in date range
+            $endDatePlus = date('Y-m-d', strtotime($endDate . ' +1 day'));
+            $resp = $supabase->select('transactions', "?transaction_date=gte.$startDate&transaction_date=lt.$endDatePlus&select=transaction_amount,product_id");
             
-            $resp = $supabase->raw($query);
-            if ($resp['code'] !== 200) throw new Exception('Failed to fetch MSFS version sales');
+            if ($resp['code'] !== 200) {
+                echo json_encode([]);
+                break;
+            }
             
-            $decoded = json_decode($resp['body'], true);
-            if (!is_array($decoded)) $decoded = [];
+            $transactions = json_decode($resp['body'], true);
+            if (!is_array($transactions)) $transactions = [];
             
+            // Fetch products with msfs_version
+            $prodResp = $supabase->select('products', '?select=product_id,msfs_version');
+            $products = [];
+            if ($prodResp['code'] === 200) {
+                $prodData = json_decode($prodResp['body'], true);
+                if (is_array($prodData)) {
+                    foreach ($prodData as $p) {
+                        $products[$p['product_id']] = $p['msfs_version'];
+                    }
+                }
+            }
+            
+            // Aggregate by version
+            $byVersion = [];
+            foreach ($transactions as $tx) {
+                $version = $products[$tx['product_id']] ?? 'Unknown';
+                if ($version === null || $version === '') $version = 'Unknown';
+                
+                if (!isset($byVersion[$version])) {
+                    $byVersion[$version] = ['total_sales' => 0, 'units' => 0];
+                }
+                $byVersion[$version]['total_sales'] += floatval($tx['transaction_amount']);
+                $byVersion[$version]['units']++;
+            }
+            
+            // Format result
             $result = [];
-            foreach ($decoded as $row) {
+            foreach ($byVersion as $version => $data) {
                 $result[] = [
-                    'version' => $row['version'],
-                    'total_sales' => floatval($row['total_sales']),
-                    'units' => intval($row['units'])
+                    'version' => $version,
+                    'total_sales' => $data['total_sales'],
+                    'units' => $data['units']
                 ];
             }
             
+            // Sort by total_sales descending
+            usort($result, function($a, $b) {
+                return $b['total_sales'] <=> $a['total_sales'];
+            });
+            
             echo json_encode($result);
+            break;
+
+        case 'all_products':
+            // List all products from all_products table (discovered from CSV uploads)
+            $queryParams = '?order=last_seen_at.desc';
+            $resp = $supabase->select('all_products', $queryParams);
+            if ($resp['code'] !== 200) throw new Exception('Failed to fetch all products');
+            $decoded = json_decode($resp['body'], true);
+            echo json_encode(is_array($decoded) ? $decoded : []);
+            break;
+
+        case 'track_product':
+            // Mark a product from all_products as tracked (add it to products table)
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception('POST required');
+            $data = requireJsonBody();
+            
+            $productId = requireString($data, 'product_id', 1, 255);
+            
+            // Get product from all_products
+            $resp = $supabase->select('all_products', "?product_id=eq.$productId");
+            if ($resp['code'] !== 200) throw new Exception('Product not found in all_products');
+            
+            $allProds = json_decode($resp['body'], true);
+            if (!is_array($allProds) || count($allProds) === 0) {
+                throw new Exception('Product not found');
+            }
+            
+            $prod = $allProds[0];
+            
+            // Insert into products table
+            $newProduct = [
+                'product_id' => $prod['product_id'],
+                'product_name' => $prod['product_name'],
+                'lever' => $prod['lever'],
+                'label' => $prod['product_name']
+            ];
+            
+            $insertResp = $supabase->insert('products', [$newProduct], false, true);
+            if ($insertResp['code'] !== 200 && $insertResp['code'] !== 201) {
+                throw new Exception('Failed to add product to tracking');
+            }
+            
+            // Update is_tracked in all_products
+            $updateResp = $supabase->update('all_products', ['is_tracked' => true], "?product_id=eq.$productId");
+            if ($updateResp['code'] !== 200 && $updateResp['code'] !== 204) {
+                throw new Exception('Failed to update tracking status');
+            }
+            
+            echo json_encode(['success' => true, 'message' => 'Product is now being tracked']);
+            break;
+
+        case 'untrack_product':
+            // Mark a product as untracked (remove from products table but keep in all_products)
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception('POST required');
+            $data = requireJsonBody();
+            
+            $productId = requireString($data, 'product_id', 1, 255);
+            
+            // Delete from products table
+            $deleteResp = $supabase->request('DELETE', "products?product_id=eq.$productId", null);
+            if ($deleteResp['code'] !== 200 && $deleteResp['code'] !== 204) {
+                throw new Exception('Failed to remove product from tracking');
+            }
+            
+            // Update is_tracked in all_products
+            $updateResp = $supabase->update('all_products', ['is_tracked' => false], "?product_id=eq.$productId");
+            if ($updateResp['code'] !== 200 && $updateResp['code'] !== 204) {
+                throw new Exception('Failed to update tracking status');
+            }
+            
+            echo json_encode(['success' => true, 'message' => 'Product is no longer tracked']);
             break;
 
         default:
