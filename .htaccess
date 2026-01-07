@@ -1,3 +1,16 @@
+RewriteEngine On
+
+# Don't rewrite existing files/directories
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Keep backend routes as-is
+RewriteRule ^backend/ - [L]
+
+# SPA fallback: send everything else to index.php (which serves app.html after auth)
+RewriteRule ^ index.php [L]
+
 # Redirecionar entrada padrão para index.php
 DirectoryIndex index.php
 

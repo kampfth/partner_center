@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         http_response_code(429);
         $error = "Too many attempts. Try again later.";
     } else {
-        $code = $_POST['code'] ?? '';
+    $code = $_POST['code'] ?? '';
 
         if ($setupMode) {
             // Initial enrollment: user confirms the generated secret with a valid TOTP

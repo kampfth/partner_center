@@ -3,6 +3,7 @@ export * from './group';
 export * from './report';
 export * from './audit';
 export * from './upload';
+export * from './balance';
 
 export interface SortOrder {
   value: string[];

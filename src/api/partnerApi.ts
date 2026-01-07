@@ -9,6 +9,19 @@ import type {
   ProductUpdate,
   AddProductPayload,
   CreateGroupPayload,
+  BalanceResponse,
+  Expense,
+  Withdrawal,
+  RevenueAdjustment,
+  Partner,
+  CreateExpensePayload,
+  UpdateExpensePayload,
+  CreateWithdrawalPayload,
+  UpdateWithdrawalPayload,
+  CreateRevenueAdjustmentPayload,
+  UpdateRevenueAdjustmentPayload,
+  UpdatePartnersPayload,
+  InitialCash,
 } from '@/types';
 
 export async function fetchProducts(): Promise<Product[]> {
@@ -101,4 +114,70 @@ export async function fetchAvailableProducts(): Promise<AvailableProduct[]> {
 
 export async function removeProduct(product_id: string): Promise<{ success: boolean }> {
   return post<{ success: boolean }>('action=remove_product', { product_id });
+}
+
+// Balance API functions
+export async function fetchBalance(year: number): Promise<BalanceResponse> {
+  return get<BalanceResponse>(`action=balance&year=${year}`);
+}
+
+export async function fetchBalanceYears(): Promise<{ years: number[] }> {
+  return get<{ years: number[] }>('action=balance_years');
+}
+
+export async function createExpense(payload: CreateExpensePayload): Promise<Expense> {
+  return post<Expense>('action=create_expense', payload);
+}
+
+export async function updateExpense(payload: UpdateExpensePayload): Promise<Expense> {
+  return post<Expense>('action=update_expense', payload);
+}
+
+export async function deleteExpense(id: number): Promise<{ success: boolean }> {
+  return post<{ success: boolean }>('action=delete_expense', { id });
+}
+
+export async function createWithdrawal(payload: CreateWithdrawalPayload): Promise<Withdrawal> {
+  return post<Withdrawal>('action=create_withdrawal', payload);
+}
+
+export async function updateWithdrawal(payload: UpdateWithdrawalPayload): Promise<Withdrawal> {
+  return post<Withdrawal>('action=update_withdrawal', payload);
+}
+
+export async function deleteWithdrawal(id: number): Promise<{ success: boolean }> {
+  return post<{ success: boolean }>('action=delete_withdrawal', { id });
+}
+
+export async function createRevenueAdjustment(payload: CreateRevenueAdjustmentPayload): Promise<RevenueAdjustment> {
+  return post<RevenueAdjustment>('action=create_revenue_adjustment', payload);
+}
+
+export async function updateRevenueAdjustment(payload: UpdateRevenueAdjustmentPayload): Promise<RevenueAdjustment> {
+  return post<RevenueAdjustment>('action=update_revenue_adjustment', payload);
+}
+
+export async function deleteRevenueAdjustment(id: number): Promise<{ success: boolean }> {
+  return post<{ success: boolean }>('action=delete_revenue_adjustment', { id });
+}
+
+export async function fetchPartners(): Promise<Partner[]> {
+  return get<Partner[]>('action=partners');
+}
+
+export async function updatePartners(payload: UpdatePartnersPayload): Promise<Partner[]> {
+  return post<Partner[]>('action=update_partners', payload);
+}
+
+// Initial Cash Management
+export async function fetchInitialCash(): Promise<InitialCash[]> {
+  return get<InitialCash[]>('action=get_initial_cash');
+}
+
+export async function setInitialCash(year: number, amount: number, note?: string): Promise<{ success: boolean }> {
+  return post<{ success: boolean }>('action=set_initial_cash', { year, amount, note });
+}
+
+export async function deleteInitialCash(year: number): Promise<{ success: boolean }> {
+  return post<{ success: boolean }>('action=delete_initial_cash', { year });
 }

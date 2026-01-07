@@ -1,11 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, FileBarChart, Shield } from 'lucide-react';
+import { LayoutDashboard, Package, FileBarChart, Shield, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/products', label: 'Products', icon: Package },
   { path: '/report', label: 'Reports', icon: FileBarChart },
+  { path: '/balance', label: 'Balance', icon: Wallet },
   { path: '/admin', label: 'Admin', icon: Shield },
 ];
 
@@ -26,7 +27,8 @@ export function TopNav() {
         {/* Desktop Navigation - minimal */}
         <nav className="hidden md:flex items-center gap-1 ml-8">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname.startsWith(item.path) && item.path !== '/';
+            const isDashboardActive = item.path === '/' && location.pathname === '/';
             const Icon = item.icon;
 
             return (
@@ -35,7 +37,7 @@ export function TopNav() {
                 to={item.path}
                 className={cn(
                   'flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-all duration-150',
-                  isActive
+                  (isActive || isDashboardActive)
                     ? 'text-foreground bg-secondary'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
@@ -50,7 +52,9 @@ export function TopNav() {
         {/* Mobile: current page */}
         <div className="md:hidden ml-auto">
           <span className="text-sm font-medium text-muted-foreground">
-            {navItems.find(item => item.path === location.pathname)?.label}
+            {navItems.find(item => 
+              item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)
+            )?.label || 'Dashboard'}
           </span>
         </div>
       </div>

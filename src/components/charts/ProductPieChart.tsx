@@ -78,3 +78,4 @@ export default function ProductPieChart({ data }: { data: PieData[] }) {
   );
 }
 
+

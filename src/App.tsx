@@ -12,6 +12,7 @@ const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const ProductsPage = lazy(() => import("./pages/ProductsPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const ReportPage = lazy(() => import("./pages/ReportPage"));
+const BalancePage = lazy(() => import("./pages/BalancePage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -60,6 +61,14 @@ const App = () => (
               element={
                 <Suspense fallback={<PageLoader />}>
                   <ReportPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/balance"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <BalancePage />
                 </Suspense>
               }
             />

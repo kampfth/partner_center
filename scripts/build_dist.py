@@ -98,6 +98,7 @@ def copy_backend() -> None:
 def copy_root_files() -> None:
     """Copy root-level files needed for deployment."""
     root_files = [
+        ".htaccess",
         "index.php",
         "README.md",
     ]

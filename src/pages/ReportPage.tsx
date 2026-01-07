@@ -86,7 +86,7 @@ export default function ReportPage() {
 
   useEffect(() => {
     if (!initializing && startDate && endDate) {
-      loadData();
+    loadData();
     }
   }, [loadData, initializing, startDate, endDate]);
 
@@ -224,8 +224,8 @@ export default function ReportPage() {
               disabled={loading || initializing || !sortedSummary.length}
             >
               {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-              {copied ? 'Copied!' : 'Copy for Sheets'}
-            </Button>
+            {copied ? 'Copied!' : 'Copy for Sheets'}
+          </Button>
             <Button 
               variant="secondary" 
               size="sm" 
@@ -242,11 +242,11 @@ export default function ReportPage() {
       {/* Charts side by side */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Daily Sales Bar Chart */}
-        <Card>
+      <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Daily Sales</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+        <CardContent className="pt-0">
             {loading || initializing ? (
               <ChartSkeleton />
             ) : chartData.length > 0 ? (
@@ -256,8 +256,8 @@ export default function ReportPage() {
             ) : (
               <p className="py-12 text-center text-sm text-muted-foreground">No data available</p>
             )}
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
 
         {/* Product Distribution Pie Chart */}
         <Card>

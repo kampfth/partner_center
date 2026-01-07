@@ -153,7 +153,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!initializing && startDate && endDate) {
-      loadData();
+    loadData();
     }
   }, [loadData, initializing, startDate, endDate]);
 
@@ -185,7 +185,7 @@ export default function DashboardPage() {
     if (minDate && start < new Date(minDate)) {
       setStartDate(minDate);
     } else {
-      setStartDate(format(start, 'yyyy-MM-dd'));
+    setStartDate(format(start, 'yyyy-MM-dd'));
     }
     setEndDate(maxDate);
   };
@@ -197,9 +197,9 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-1">Sales overview</p>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">Sales overview</p>
           </div>
           {maxDate && (
             <div className="text-right">
@@ -263,60 +263,60 @@ export default function DashboardPage() {
           </>
         ) : stats ? (
           <>
-            <StatCard
-              title="Total Sales"
-              value={formatCurrency(stats.totalSales)}
-              icon={DollarSign}
-              subtitle={`${stats.daysWithData} days`}
-            />
-            <StatCard
+          <StatCard
+            title="Total Sales"
+            value={formatCurrency(stats.totalSales)}
+            icon={DollarSign}
+            subtitle={`${stats.daysWithData} days`}
+          />
+          <StatCard
               title="Units Sold"
               value={stats.totalUnits.toLocaleString()}
-              icon={ShoppingCart}
-            />
-            <StatCard
+            icon={ShoppingCart}
+          />
+          <StatCard
               title="Avg/Unit"
               value={formatCurrency(stats.avgPerUnit)}
-              icon={TrendingUp}
-            />
-            <StatCard
-              title="Period"
-              value={`${stats.daysWithData}d`}
+            icon={TrendingUp}
+          />
+          <StatCard
+            title="Period"
+            value={`${stats.daysWithData}d`}
               icon={CalendarDays}
               subtitle={startDate && endDate ? `${format(new Date(startDate), 'MMM d')} – ${format(new Date(endDate), 'MMM d')}` : ''}
-            />
+          />
           </>
         ) : null}
-      </div>
+        </div>
 
       {/* Chart + Top Products Side by Side */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Chart */}
-        <Card>
+      {/* Chart */}
+      <Card>
           <div className="p-4">
-            <h2 className="text-base font-semibold">Daily Sales</h2>
-          </div>
-          <CardContent className="pt-0">
+          <h2 className="text-base font-semibold">Daily Sales</h2>
+        </div>
+        <CardContent className="pt-0">
             {loading || initializing ? (
               <ChartSkeleton />
             ) : chartData.length > 0 ? (
-              <Suspense fallback={<ChartSkeleton />}>
-                <SalesChart data={chartData} />
-              </Suspense>
-            ) : (
+            <Suspense fallback={<ChartSkeleton />}>
+              <SalesChart data={chartData} />
+            </Suspense>
+          ) : (
               <p className="py-12 text-center text-sm text-muted-foreground">
-                No data for selected period
-              </p>
-            )}
-          </CardContent>
-        </Card>
+              No data for selected period
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Top Products */}
-        <Card>
+      {/* Top Products */}
+      <Card>
           <div className="p-4">
-            <h2 className="text-base font-semibold">Top Products</h2>
-          </div>
-          <CardContent className="pt-0">
+          <h2 className="text-base font-semibold">Top Products</h2>
+        </div>
+        <CardContent className="pt-0">
             {loading || initializing ? (
               <div className="space-y-2">
                 {[1, 2, 3, 4, 5].map((i) => (
@@ -334,25 +334,25 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : data?.summary && data.summary.length > 0 ? (
-              <div>
-                {data.summary
+            <div>
+              {data.summary
                   .sort((a, b) => b.total_amount - a.total_amount)
-                  .slice(0, 5)
-                  .map((product, index) => (
-                    <ProductSummaryCard 
+                .slice(0, 5)
+                .map((product, index) => (
+                  <ProductSummaryCard 
                       key={product.product_id || product.group_id || product.display_name} 
-                      product={product} 
-                      rank={index + 1} 
-                    />
-                  ))}
-              </div>
-            ) : (
-              <p className="py-12 text-center text-sm text-muted-foreground">
-                No products found
-              </p>
-            )}
-          </CardContent>
-        </Card>
+                    product={product} 
+                    rank={index + 1} 
+                  />
+                ))}
+            </div>
+          ) : (
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              No products found
+            </p>
+          )}
+        </CardContent>
+      </Card>
       </div>
     </div>
   );

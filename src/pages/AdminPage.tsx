@@ -1,9 +1,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GroupManagementTab } from './admin/GroupManagementTab';
 import { UploadTab } from './admin/UploadTab';
+import { BalanceManagerTab } from './admin/BalanceManagerTab';
 import { SortOrderTab } from './settings/SortOrderTab';
 import { DangerZoneTab } from './settings/DangerZoneTab';
-import { Users, Upload, ListOrdered, AlertTriangle } from 'lucide-react';
+import { Users, Upload, ListOrdered, AlertTriangle, Wallet } from 'lucide-react';
 
 export default function AdminPage() {
   return (
@@ -14,7 +15,7 @@ export default function AdminPage() {
       </div>
 
       <Tabs defaultValue="groups" className="w-full">
-        <TabsList className="grid w-full max-w-[600px] grid-cols-4">
+        <TabsList className="grid w-full max-w-[750px] grid-cols-5">
           <TabsTrigger value="groups" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Groups</span>
@@ -23,9 +24,13 @@ export default function AdminPage() {
             <Upload className="h-4 w-4" />
             <span className="hidden sm:inline">Upload</span>
           </TabsTrigger>
+          <TabsTrigger value="balance" className="flex items-center gap-2">
+            <Wallet className="h-4 w-4" />
+            <span className="hidden sm:inline">Balance</span>
+          </TabsTrigger>
           <TabsTrigger value="sort" className="flex items-center gap-2">
             <ListOrdered className="h-4 w-4" />
-            <span className="hidden sm:inline">Sort Order</span>
+            <span className="hidden sm:inline">Sort</span>
           </TabsTrigger>
           <TabsTrigger value="danger" className="flex items-center gap-2 text-destructive data-[state=active]:text-destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -37,6 +42,9 @@ export default function AdminPage() {
         </TabsContent>
         <TabsContent value="upload" className="mt-6">
           <UploadTab />
+        </TabsContent>
+        <TabsContent value="balance" className="mt-6">
+          <BalanceManagerTab />
         </TabsContent>
         <TabsContent value="sort" className="mt-6">
           <SortOrderTab />
