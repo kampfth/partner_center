@@ -101,7 +101,8 @@ export async function resetAll(): Promise<{ success: boolean }> {
 
 // === Upload ===
 export async function uploadFile(file: File, onProgress?: ProgressCallback): Promise<UploadResponse> {
-  return upload<UploadResponse>(file, onProgress);
+  const response = await upload<ApiResponse<UploadResponse>>(file, onProgress);
+  return response.data;
 }
 
 // === Balance ===

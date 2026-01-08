@@ -7,10 +7,11 @@
 declare(strict_types=1);
 
 // Bootstrap application
-// This file is used in dist layout where src lives at ./src
-// (The same entrypoint is also used in dev under v2/backend/public/)
+// This file is used in two layouts:
+// - dev: v2/backend/public/index.php  (src is ../src)
+// - dist: v2/dist/backend/index.php   (src is ./src)
 $srcDir = null;
-foreach ([__DIR__ . '/src', __DIR__ . '/../src'] as $candidate) {
+foreach ([__DIR__ . '/../src', __DIR__ . '/src'] as $candidate) {
     if (is_dir($candidate)) {
         $srcDir = $candidate;
         break;

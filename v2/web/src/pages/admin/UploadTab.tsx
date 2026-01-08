@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, FileUp, CheckCircle2, XCircle, File } from 'lucide-react';
+import { Upload, FileUp, CheckCircle2, AlertTriangle, File } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -48,7 +48,7 @@ export function UploadTab() {
       setResult(response);
       toast({
         title: 'Upload Complete',
-        description: `Processed ${response.processed} records, inserted ${response.inserted}`,
+        description: `Rows ${response.rows_read}, inserted ${response.transactions_inserted}, discovered ${response.products_discovered}`,
       });
     } catch (err) {
       toast({
@@ -144,8 +144,8 @@ export function UploadTab() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              {result.errors && result.errors.length > 0 ? (
-                <XCircle className="h-5 w-5 text-destructive" />
+              {result.transactions_skipped > 0 ? (
+                <AlertTriangle className="h-5 w-5 text-warning" />
               ) : (
                 <CheckCircle2 className="h-5 w-5 text-primary" />
               )}
@@ -156,42 +156,21 @@ export function UploadTab() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg bg-accent/50 p-4">
                 <p className="text-sm text-muted-foreground">Processed</p>
-                <p className="text-2xl font-bold">{result.processed}</p>
+                <p className="text-2xl font-bold">{result.rows_read}</p>
               </div>
-              {result.tracked !== undefined && (
-                <div className="rounded-lg bg-accent/50 p-4">
-                  <p className="text-sm text-muted-foreground">Tracked</p>
-                  <p className="text-2xl font-bold">{result.tracked}</p>
-                </div>
-              )}
+              <div className="rounded-lg bg-accent/50 p-4">
+                <p className="text-sm text-muted-foreground">Products Discovered</p>
+                <p className="text-2xl font-bold">{result.products_discovered}</p>
+              </div>
               <div className="rounded-lg bg-accent/50 p-4">
                 <p className="text-sm text-muted-foreground">Inserted</p>
-                <p className="text-2xl font-bold">{result.inserted}</p>
+                <p className="text-2xl font-bold">{result.transactions_inserted}</p>
               </div>
-              {result.csv_files_processed !== undefined && (
-                <div className="rounded-lg bg-accent/50 p-4">
-                  <p className="text-sm text-muted-foreground">CSV Files</p>
-                  <p className="text-2xl font-bold">{result.csv_files_processed}</p>
-                </div>
-              )}
-              {result.latest_date && (
-                <div className="rounded-lg bg-accent/50 p-4">
-                  <p className="text-sm text-muted-foreground">Latest Date</p>
-                  <p className="text-lg font-bold">{result.latest_date}</p>
-                </div>
-              )}
+              <div className="rounded-lg bg-accent/50 p-4">
+                <p className="text-sm text-muted-foreground">Untracked</p>
+                <p className="text-2xl font-bold">{result.transactions_untracked}</p>
+              </div>
             </div>
-
-            {result.errors && result.errors.length > 0 && (
-              <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
-                <p className="font-medium text-destructive">Errors</p>
-                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-muted-foreground">
-                  {result.errors.map((err, i) => (
-                    <li key={i}>{err}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}

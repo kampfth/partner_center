@@ -28,7 +28,10 @@ class CsvParser
             // Strip BOM and normalize
             $h = preg_replace('/^\xEF\xBB\xBF/', '', $h);
             $key = strtolower(trim($h));
-            if (isset(self::HEADER_MAP[$key])) {
+            // Normalize to match common variants like "Earning ID" vs "EarningID"
+            // (remove spaces, underscores, punctuation, etc.)
+            $key = preg_replace('/[^a-z0-9]/', '', $key);
+            if ($key !== '' && isset(self::HEADER_MAP[$key])) {
                 $map[self::HEADER_MAP[$key]] = $i;
             }
         }
