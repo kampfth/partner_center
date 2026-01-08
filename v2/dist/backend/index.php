@@ -7,7 +7,23 @@
 declare(strict_types=1);
 
 // Bootstrap application
-require_once __DIR__ . '/../src/bootstrap.php';
+// This file is used in dist layout where src lives at ./src
+// (The same entrypoint is also used in dev under v2/backend/public/)
+$srcDir = null;
+foreach ([__DIR__ . '/src', __DIR__ . '/../src'] as $candidate) {
+    if (is_dir($candidate)) {
+        $srcDir = $candidate;
+        break;
+    }
+}
+if ($srcDir === null) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Backend misconfigured: src directory not found', 'code' => 'BOOTSTRAP_ERROR']);
+    exit;
+}
+
+require_once $srcDir . '/bootstrap.php';
 
 use App\Http\Router;
 use App\Http\Request;
@@ -20,7 +36,7 @@ $request = Request::fromGlobals();
 $router = new Router();
 
 // Register routes
-require_once __DIR__ . '/../src/routes.php';
+require_once $srcDir . '/routes.php';
 
 // Dispatch and send response
 try {
