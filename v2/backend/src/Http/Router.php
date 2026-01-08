@@ -83,6 +83,12 @@ class Router
                     }
                 }
 
+                // Many handlers don't take route params (e.g. fn(Request $r) => ...).
+                // Only pass $params when we actually matched named params.
+                if (empty($params)) {
+                    return ($route['handler'])($request);
+                }
+
                 return ($route['handler'])($request, $params);
             }
         }
