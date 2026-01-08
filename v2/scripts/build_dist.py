@@ -34,7 +34,7 @@ def clean_dist():
 def build_frontend():
     """Build React frontend"""
     print("\n[BUILD] Frontend (npm install + build)")
-    run_cmd("npm install", cwd=WEB_DIR)
+    run_cmd("npm install --legacy-peer-deps", cwd=WEB_DIR)
     run_cmd("npm run build", cwd=WEB_DIR)
     
     # Copy built files to dist

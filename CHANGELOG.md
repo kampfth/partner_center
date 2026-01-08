@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed (v2 Frontend - 2026-01-08)
+- **Restored LEGADO visual design** — Apple Dark Design System with proper colors, fonts, and animations
+- **Replaced generic pages** with fully-featured LEGADO pages:
+  - `DashboardPage` — Sales overview, date selection, KPIs, daily chart, top products
+  - `GraphicsPage` — Detailed reports with MSFS comparison, weekday/time charts, pie charts
+  - `BalancePage` — Monthly revenue, expenses, withdrawals management
+  - `AdminPage` — 6 tabs (Groups, Products, Upload, Balance, Sort Order, Danger Zone)
+- **Correct navigation** — Dashboard, Graphics, Balance, Admin (bottom nav on mobile, top nav on desktop)
+- **All chart components** ported from LEGADO with Recharts v3 compatibility fixes
+- **Balance components** — BalanceView, BalanceGridDesktop, BalanceListMobile with full expense/withdrawal management
+- **API client adapted** — All endpoints mapped from LEGADO `?action=X` style to v2 REST API
+- **Types merged** — Complete TypeScript types for balance, products, groups, reports, audit
+- **Dependencies updated** — All required shadcn/ui components, radix primitives, recharts, sonner
+
 ### Added (v2 Frontend)
 - **Frontend v2 scaffold** in `v2/web/` — React 18 + TypeScript + Vite
 - **Tailwind CSS v3** with shadcn/ui dark theme
@@ -41,8 +55,21 @@ All notable changes to this project will be documented in this file.
   - `POST /api/imports` (CSV/ZIP upload with discovery + dedupe)
   - `GET /api/imports` (import history)
   - `GET /api/reports`, `GET /api/reports/date-range`
+- **Balance/Financial endpoints**:
+  - `GET /api/balance`, `GET /api/balance/years`
+  - `POST/PATCH/DELETE /api/expenses/{id}`
+  - `POST/PATCH/DELETE /api/withdrawals/{id}`
+  - `POST/PATCH/DELETE /api/revenue-adjustments/{id}`
+  - `GET/POST /api/initial-cash`, `DELETE /api/initial-cash/{year}`
+- **Partners endpoints**: `GET /api/partners`, `PUT /api/partners`
+- **Settings endpoints**: `GET/PUT /api/settings/sort-order`, `GET /api/audit-logs`
+- **Analytics endpoints**: `GET /api/analytics/weekday`, `GET /api/analytics/time-bucket`, `GET /api/analytics/msfs-version`
+- **Admin endpoints**: `POST /api/admin/truncate`, `POST /api/admin/reset`
 - **Login page** at `/login` with QR code setup for new installations
 - **.htaccess example** for Hostinger deployment (`v2/backend/htaccess_root_example.txt`)
+- **New database tables in schema v2**:
+  - `balance_expenses`, `balance_withdrawals`, `balance_revenue_adjustments`
+  - `balance_initial_cash`, `partners`, `app_settings`, `audit_logs`
 
 ### Changed
 - `docs/07_runbook.md` updated with v2 backend instructions

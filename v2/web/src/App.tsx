@@ -1,33 +1,91 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { Toaster } from '@/components/ui/toaster'
+import { Suspense, lazy } from 'react';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AppShell } from "./components/layout/AppShell";
+import { PageSkeleton } from "./components/ui/skeleton";
 
-// Pages - will be implemented
-import DashboardPage from '@/pages/DashboardPage'
-import ProductsPage from '@/pages/ProductsPage'
-import GroupsPage from '@/pages/GroupsPage'
-import ImportsPage from '@/pages/ImportsPage'
-import ReportsPage from '@/pages/ReportsPage'
-import NotFound from '@/pages/NotFound'
+// Lazy load pages for better performance
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+const GraphicsPage = lazy(() => import("./pages/GraphicsPage"));
+const BalancePage = lazy(() => import("./pages/BalancePage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
-// Layout
-import { AppShell } from '@/components/layout/AppShell'
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-function App() {
+function PageLoader() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/groups" element={<GroupsPage />} />
-          <Route path="/imports" element={<ImportsPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-        </Route>
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      <Toaster />
-    </BrowserRouter>
-  )
+    <div className="animate-fade-in">
+      <PageSkeleton />
+    </div>
+  );
 }
 
-export default App
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route
+              path="/"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/graphics"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <GraphicsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/balance"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <BalancePage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminPage />
+                </Suspense>
+              }
+            />
+            {/* Redirect old settings URL to admin */}
+            <Route path="/settings" element={<Navigate to="/admin" replace />} />
+          </Route>
+          <Route
+            path="*"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <NotFound />
+              </Suspense>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;

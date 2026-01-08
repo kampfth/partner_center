@@ -32,6 +32,11 @@ class Router
         $this->addRoute('DELETE', $pattern, $handler, $public);
     }
 
+    public function put(string $pattern, callable $handler, bool $public = false): void
+    {
+        $this->addRoute('PUT', $pattern, $handler, $public);
+    }
+
     public function addMiddleware(callable $middleware): void
     {
         $this->middleware[] = $middleware;

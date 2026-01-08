@@ -1,6 +1,6 @@
-import { Outlet } from 'react-router-dom'
-import { TopNav } from './TopNav'
-import { BottomNav } from './BottomNav'
+import { Outlet } from 'react-router-dom';
+import { TopNav } from './TopNav';
+import { BottomNav } from './BottomNav';
 
 export function AppShell() {
   return (
@@ -11,5 +11,5 @@ export function AppShell() {
       </main>
       <BottomNav />
     </div>
-  )
+  );
 }
