@@ -14,11 +14,16 @@ ini_set('log_errors', '1');
 ini_set('memory_limit', '512M');
 ini_set('max_execution_time', '300');
 
-// Load environment variables (check multiple locations)
+// Global to store env values (putenv doesn't work on all servers)
+global $__ENV_VALUES;
+$__ENV_VALUES = [];
+
+// Load environment variables - try multiple paths
 $envPaths = [
-    __DIR__ . '/../.env',      // backend/.env
-    __DIR__ . '/../../.env',   // public_html/.env (Hostinger)
+    __DIR__ . '/../.env',           // backend/.env
+    __DIR__ . '/../../.env',        // public_html/.env (where user put it)
 ];
+
 foreach ($envPaths as $envPath) {
     if (file_exists($envPath)) {
         loadEnvFile($envPath);
@@ -49,6 +54,8 @@ spl_autoload_register(function (string $class): void {
  */
 function loadEnvFile(string $path): void
 {
+    global $__ENV_VALUES;
+    
     if (!file_exists($path)) {
         return;
     }
@@ -81,18 +88,47 @@ function loadEnvFile(string $path): void
             }
         }
 
-        if ($key !== '' && getenv($key) === false) {
-            putenv("$key=$val");
+        if ($key !== '') {
+            // Store in our global array (always works)
+            $__ENV_VALUES[$key] = $val;
+            // Also try putenv and $_ENV (may not work on all servers)
+            @putenv("$key=$val");
             $_ENV[$key] = $val;
         }
     }
 }
 
-// Define constants
-define('APP_ENV', getenv('APP_ENV') ?: 'production');
-define('SUPABASE_URL', getenv('SUPABASE_URL') ?: '');
-define('SUPABASE_SERVICE_ROLE_KEY', getenv('SUPABASE_SERVICE_ROLE_KEY') ?: '');
-define('AUTH_TOTP_SECRET', getenv('AUTH_TOTP_SECRET') ?: '');
+/**
+ * Get environment variable value
+ */
+function env(string $key, string $default = ''): string
+{
+    global $__ENV_VALUES;
+    
+    // First check our global array (most reliable)
+    if (isset($__ENV_VALUES[$key])) {
+        return $__ENV_VALUES[$key];
+    }
+    
+    // Then try getenv
+    $val = getenv($key);
+    if ($val !== false && $val !== '') {
+        return $val;
+    }
+    
+    // Then try $_ENV
+    if (isset($_ENV[$key]) && $_ENV[$key] !== '') {
+        return $_ENV[$key];
+    }
+    
+    return $default;
+}
+
+// Define constants using our reliable env() function
+define('APP_ENV', env('APP_ENV', 'production'));
+define('SUPABASE_URL', env('SUPABASE_URL'));
+define('SUPABASE_SERVICE_ROLE_KEY', env('SUPABASE_SERVICE_ROLE_KEY'));
+define('AUTH_TOTP_SECRET', env('AUTH_TOTP_SECRET'));
 define('VAR_DIR', __DIR__ . '/../var');
 
 // Ensure var directory exists
