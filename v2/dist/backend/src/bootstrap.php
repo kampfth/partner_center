@@ -15,7 +15,7 @@ ini_set('memory_limit', '512M');
 ini_set('max_execution_time', '300');
 
 // Load environment variables
-loadEnvFile(__DIR__ . '/../../.env');
+loadEnvFile(__DIR__ . '/../.env');
 
 // Simple PSR-4-like autoloader for App namespace
 spl_autoload_register(function (string $class): void {
