@@ -184,9 +184,9 @@ function processCsvFile($csvPath, $supabase, $trackedSet, &$totalRowsRead, &$tot
         $supabase->insert('all_products', array_values($allProductsBatch), true);
     }
 
-    if (!empty($productsBatch)) {
-        $supabase->insert('products', array_values($productsBatch), false);
-    }
+        if (!empty($productsBatch)) {
+            $supabase->insert('products', array_values($productsBatch), false);
+        }
 
     // Flush final transactions batch
     if (!empty($transactionsBatch)) {
