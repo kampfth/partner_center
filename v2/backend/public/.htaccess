@@ -1,0 +1,19 @@
+# v2/backend/public/.htaccess
+# Rewrite all requests to index.php (single entry point)
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Skip existing files and directories
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Route everything to index.php
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
+
+# Security: deny access to sensitive files
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

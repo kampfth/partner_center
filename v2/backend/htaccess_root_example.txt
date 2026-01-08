@@ -1,0 +1,38 @@
+# Example .htaccess for public_html root (Hostinger)
+# Copy/merge this into your public_html/.htaccess
+#
+# This routes /api/* and /login to v2 backend while keeping frontend assets intact.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # --- v2 API routing ---
+    # Route /api/* to v2 backend
+    RewriteCond %{REQUEST_URI} ^/api(/.*)?$ [OR]
+    RewriteCond %{REQUEST_URI} ^/login$ [OR]
+    RewriteCond %{REQUEST_URI} ^/logout$
+    RewriteRule ^(.*)$ v2/backend/public/index.php [QSA,L]
+
+    # --- Frontend SPA fallback ---
+    # Skip existing files and directories
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    # Route to frontend index (adjust if your frontend entry is different)
+    RewriteRule ^(.*)$ index.html [QSA,L]
+</IfModule>
+
+# Security: deny access to sensitive files
+<FilesMatch "\.(env|php|json)$">
+    Require all denied
+</FilesMatch>
+
+# Allow index.php explicitly
+<Files "index.php">
+    Require all granted
+</Files>
+
+# Block access to v2/backend/src and var directories
+<DirectoryMatch "v2/backend/(src|var)">
+    Require all denied
+</DirectoryMatch>

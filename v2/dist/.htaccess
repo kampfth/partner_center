@@ -1,0 +1,42 @@
+# Partner Center v2 - Hostinger
+# SPA routing + API proxy
+
+RewriteEngine On
+RewriteBase /
+
+# Force HTTPS (uncomment in production)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# API requests -> backend/index.php
+RewriteCond %{REQUEST_URI} ^/api [NC]
+RewriteRule ^api/(.*)$ backend/index.php [L,QSA]
+
+# Login/logout -> backend/index.php
+RewriteCond %{REQUEST_URI} ^/login [NC,OR]
+RewriteCond %{REQUEST_URI} ^/logout [NC]
+RewriteRule ^(.*)$ backend/index.php [L,QSA]
+
+# Static files (assets, images, etc.) → serve directly
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Everything else -> index.html (SPA)
+RewriteRule ^ index.html [L]
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Disable directory listing
+Options -Indexes
+
+# Protect sensitive files
+<FilesMatch "\.(env|gitignore|md|json|lock)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

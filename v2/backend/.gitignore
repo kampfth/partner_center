@@ -1,0 +1,13 @@
+# Environment
+.env
+
+# Runtime secrets (persisted TOTP secret)
+var/secrets.php
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
