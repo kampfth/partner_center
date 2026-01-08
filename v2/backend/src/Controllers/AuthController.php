@@ -64,6 +64,18 @@ class AuthController
         return Response::redirect('/login');
     }
 
+    /**
+     * Session check endpoint - returns authentication status
+     * Used by frontend to gate routes before rendering
+     */
+    public function session(Request $request): Response
+    {
+        Auth::init();
+        return Response::json([
+            'authenticated' => Auth::isAuthenticated(),
+        ]);
+    }
+
     private function renderLoginPage(bool $setupMode, string $error, string $secret, string $qrUrl): string
     {
         $title = $setupMode ? 'Initial Passkey Setup (2FA)' : 'Two-Factor Authentication';

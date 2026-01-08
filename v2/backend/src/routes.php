@@ -29,6 +29,7 @@ $router->addMiddleware(fn(Request $r) => Auth::check($r));
 // === Public routes ===
 
 $router->get('/api/health', fn(Request $r) => (new HealthController())->index($r), public: true);
+$router->get('/api/session', fn(Request $r) => (new AuthController())->session($r), public: true);
 $router->get('/login', fn(Request $r) => (new AuthController())->loginPage($r), public: true);
 $router->post('/login', fn(Request $r) => (new AuthController())->loginPage($r), public: true);
 $router->get('/logout', fn(Request $r) => (new AuthController())->logout($r), public: true);

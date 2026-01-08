@@ -83,7 +83,7 @@ class AnalyticsService
         
         $byVersion = [];
         foreach ($transactions as $tx) {
-            $version = $this->detectVersion($tx['msfs_version'] ?? '', $tx['lever'] ?? '');
+            $version = $this->detectVersion($tx['msfs_version'] ?? '');
             
             if (!isset($byVersion[$version])) {
                 $byVersion[$version] = ['total_sales' => 0, 'units' => 0];
@@ -109,15 +109,15 @@ class AnalyticsService
     {
         $nextDay = date('Y-m-d', strtotime($end . ' +1 day'));
         return $this->db->select('transactions',
-            "select=purchase_date,amount_usd,msfs_version,lever&purchase_date=gte.{$start}&purchase_date=lt.{$nextDay}");
+            "select=purchase_date,amount_usd,msfs_version&purchase_date=gte.{$start}&purchase_date=lt.{$nextDay}");
     }
 
-    private function detectVersion(string $msfsVersion, string $lever): string
+    private function detectVersion(string $msfsVersion): string
     {
-        if (stripos($msfsVersion, 'MSFS2024') !== false || stripos($lever, '2024') !== false) {
+        if (stripos($msfsVersion, '2024') !== false || stripos($msfsVersion, 'MSFS2024') !== false) {
             return 'MSFS2024';
         }
-        if (stripos($msfsVersion, 'MSFS2020') !== false || stripos($lever, 'Microsoft Flight Simulator') !== false) {
+        if (stripos($msfsVersion, '2020') !== false || stripos($msfsVersion, 'MSFS2020') !== false) {
             return 'MSFS2020';
         }
         return 'Unknown';

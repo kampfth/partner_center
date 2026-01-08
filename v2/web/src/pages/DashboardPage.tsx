@@ -24,13 +24,13 @@ function formatCurrency(value: number): string {
 function StatCardSkeleton() {
   return (
     <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
+      <CardContent className="p-4 pt-4">
+        <div className="flex items-center justify-between mb-3">
           <Skeleton className="h-3 w-20" />
           <Skeleton className="h-4 w-4 rounded" />
         </div>
         <Skeleton className="h-7 w-24" />
-        <Skeleton className="h-3 w-16 mt-1" />
+        <Skeleton className="h-3 w-16 mt-1.5" />
       </CardContent>
     </Card>
   );
@@ -49,8 +49,8 @@ function StatCard({
 }) {
   return (
     <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
+      <CardContent className="p-4 pt-4">
+        <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             {title}
           </span>
@@ -58,7 +58,7 @@ function StatCard({
         </div>
         <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
         {subtitle && (
-          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+          <p className="text-xs text-muted-foreground mt-1.5">{subtitle}</p>
         )}
       </CardContent>
     </Card>

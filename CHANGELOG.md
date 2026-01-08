@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed (v2 - 2026-01-09)
+- **Balance page permission denied** — Applied migration to grant `service_role` full access to all v2 tables including balance tables
+- **Graphics page "column lever does not exist"** — Removed `transactions.lever` dependency from AnalyticsService; MSFS version detection now uses only `msfs_version` column
+- **Groups selection not working** — Fixed checkbox IDs/click targets in GroupManagementTab; redesigned to 2-column layout (create left, existing groups right)
+- **Auth flash (dashboard visible before redirect)** — Added `GET /api/session` endpoint and frontend `AuthGate` component to gate routes until session check completes
+- **Dashboard card spacing** — Adjusted StatCard padding/margins to match LEGADO style
+
+### Added (v2 - 2026-01-09)
+- **Bulk track/untrack** in Products tab — Select multiple products and track/untrack in batch
+- **Product label editing** — UI for setting custom display labels (requires product to be tracked)
+- **Session check endpoint** — `GET /api/session` returns `{ authenticated: boolean }` for frontend gating
+- **Mobile-responsive Admin tabs** — Horizontal scroll on small screens, icons-only with text on larger screens
+
+### Changed (v2 - 2026-01-09)
+- GroupManagementTab now uses 2-column layout on desktop, stacked on mobile
+- ProductsTab has selection checkboxes and bulk action buttons
+- AdminPage tabs use overflow-x-auto for mobile friendliness
+
 ### Fixed (v2 Frontend - 2026-01-08)
 - **Restored LEGADO visual design** — Apple Dark Design System with proper colors, fonts, and animations
 - **Replaced generic pages** with fully-featured LEGADO pages:

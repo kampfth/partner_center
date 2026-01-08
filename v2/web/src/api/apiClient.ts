@@ -11,6 +11,27 @@ class ApiError extends Error {
   }
 }
 
+/**
+ * Check if user is authenticated via session endpoint
+ * Returns true if authenticated, false otherwise
+ */
+export async function checkSession(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/session`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    });
+    
+    if (!response.ok) return false;
+    
+    const data = await response.json();
+    return data.authenticated === true;
+  } catch {
+    return false;
+  }
+}
+
 function isHtmlResponse(text: string): boolean {
   const trimmed = text.trim().toLowerCase();
   return trimmed.startsWith('<!doctype') || trimmed.startsWith('<html');
