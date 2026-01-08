@@ -14,8 +14,17 @@ ini_set('log_errors', '1');
 ini_set('memory_limit', '512M');
 ini_set('max_execution_time', '300');
 
-// Load environment variables
-loadEnvFile(__DIR__ . '/../.env');
+// Load environment variables (check multiple locations)
+$envPaths = [
+    __DIR__ . '/../.env',      // backend/.env
+    __DIR__ . '/../../.env',   // public_html/.env (Hostinger)
+];
+foreach ($envPaths as $envPath) {
+    if (file_exists($envPath)) {
+        loadEnvFile($envPath);
+        break;
+    }
+}
 
 // Simple PSR-4-like autoloader for App namespace
 spl_autoload_register(function (string $class): void {
