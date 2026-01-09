@@ -14,7 +14,8 @@ class AnalyticsService
     private SupabaseClient $db;
     
     private const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    private const TIME_BUCKETS = ['00-04', '04-08', '08-12', '12-16', '16-20', '20-24'];
+    // 2-hour intervals (12 buckets)
+    private const TIME_BUCKETS = ['00-02', '02-04', '04-06', '06-08', '08-10', '10-12', '12-14', '14-16', '16-18', '18-20', '20-22', '22-24'];
 
     public function __construct()
     {
@@ -51,27 +52,28 @@ class AnalyticsService
     {
         $transactions = $this->getTransactions($start, $end);
         
-        $byBucket = array_fill(0, 6, ['total_sales' => 0, 'units' => 0]);
+        // 12 buckets for 2-hour intervals
+        $byBucket = array_fill(0, 12, ['total_sales' => 0, 'units' => 0]);
         foreach ($transactions as $tx) {
             // Note: purchase_date may not have time component, default to 0
             $hour = 0;
             if (strlen($tx['purchase_date'] ?? '') > 10) {
                 $hour = (int)date('H', strtotime($tx['purchase_date']));
             }
-            $bucketNum = (int)floor($hour / 4);
+            // 2-hour intervals: 0-1 -> bucket 0, 2-3 -> bucket 1, etc.
+            $bucketNum = (int)floor($hour / 2);
             $byBucket[$bucketNum]['total_sales'] += (float)($tx['amount_usd'] ?? 0);
             $byBucket[$bucketNum]['units']++;
         }
         
         $result = [];
-        for ($i = 0; $i < 6; $i++) {
-            if ($byBucket[$i]['units'] > 0) {
-                $result[] = [
-                    'time_bucket' => self::TIME_BUCKETS[$i],
-                    'total_sales' => $byBucket[$i]['total_sales'],
-                    'units' => $byBucket[$i]['units'],
-                ];
-            }
+        // Always return all 12 buckets for consistent chart display
+        for ($i = 0; $i < 12; $i++) {
+            $result[] = [
+                'time_bucket' => self::TIME_BUCKETS[$i],
+                'total_sales' => $byBucket[$i]['total_sales'],
+                'units' => $byBucket[$i]['units'],
+            ];
         }
         
         return $result;
@@ -83,7 +85,8 @@ class AnalyticsService
         
         $byVersion = [];
         foreach ($transactions as $tx) {
-            $version = $this->detectVersion($tx['msfs_version'] ?? '');
+            // Use lever column to detect MSFS version
+            $version = $this->detectVersionFromLever($tx['lever'] ?? '');
             
             if (!isset($byVersion[$version])) {
                 $byVersion[$version] = ['total_sales' => 0, 'units' => 0];
@@ -109,16 +112,22 @@ class AnalyticsService
     {
         $nextDay = date('Y-m-d', strtotime($end . ' +1 day'));
         return $this->db->select('transactions',
-            "select=purchase_date,amount_usd,msfs_version&purchase_date=gte.{$start}&purchase_date=lt.{$nextDay}");
+            "select=purchase_date,amount_usd,lever&purchase_date=gte.{$start}&purchase_date=lt.{$nextDay}");
     }
 
-    private function detectVersion(string $msfsVersion): string
+    /**
+     * Detect MSFS version from lever column
+     * "Microsoft Flight Simulator" = MSFS 2020
+     * "Microsoft Flight Simulator 2024" = MSFS 2024
+     */
+    private function detectVersionFromLever(string $lever): string
     {
-        if (stripos($msfsVersion, '2024') !== false || stripos($msfsVersion, 'MSFS2024') !== false) {
-            return 'MSFS2024';
+        if (stripos($lever, '2024') !== false) {
+            return '2024';
         }
-        if (stripos($msfsVersion, '2020') !== false || stripos($msfsVersion, 'MSFS2020') !== false) {
-            return 'MSFS2020';
+        // "Microsoft Flight Simulator" without year = 2020
+        if (stripos($lever, 'Microsoft Flight Simulator') !== false) {
+            return '2020';
         }
         return 'Unknown';
     }

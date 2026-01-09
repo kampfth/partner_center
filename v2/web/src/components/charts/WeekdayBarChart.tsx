@@ -14,6 +14,9 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
+// Day names in English, Sunday to Saturday order
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 const COLORS = [
   'hsl(var(--chart-1))',
   'hsl(var(--chart-2))',
@@ -25,21 +28,21 @@ const COLORS = [
 ];
 
 export default function WeekdayBarChart({ data }: WeekdayBarChartProps) {
-  // Reorder to start with Monday
-  const reordered = [
-    ...data.filter(d => d.day_of_week !== 0),
-    ...data.filter(d => d.day_of_week === 0),
-  ];
-
-  // Get day abbreviations
-  const formatted = reordered.map(d => ({
-    ...d,
-    dayLabel: d.day_name.substring(0, 3), // Mon, Tue, etc.
-  }));
+  // Ensure all 7 days exist, ordered Sunday to Saturday
+  const fullWeek = DAY_NAMES.map((dayName, i) => {
+    const existing = data.find(d => d.day_of_week === i);
+    return {
+      day_of_week: i,
+      day_name: dayName,
+      total_sales: existing?.total_sales || 0,
+      units: existing?.units || 0,
+      dayLabel: dayName.substring(0, 3), // Sun, Mon, etc.
+    };
+  });
 
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={formatted} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+      <BarChart data={fullWeek} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
         <XAxis
           dataKey="dayLabel"
@@ -47,28 +50,36 @@ export default function WeekdayBarChart({ data }: WeekdayBarChartProps) {
           axisLine={{ stroke: 'hsl(var(--border))' }}
         />
         <YAxis
-          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
           axisLine={{ stroke: 'hsl(var(--border))' }}
           tickFormatter={(value) => formatCurrency(value)}
+          width={55}
         />
         <Tooltip
+          cursor={false}
           contentStyle={{
-            backgroundColor: 'hsl(var(--card))',
+            backgroundColor: 'hsl(var(--popover))',
             border: '1px solid hsl(var(--border))',
-            borderRadius: '6px',
-            color: 'hsl(var(--foreground))',
+            borderRadius: '8px',
+            padding: '8px 12px',
           }}
+          labelStyle={{ 
+            color: 'hsl(var(--foreground))', 
+            fontWeight: 600,
+            marginBottom: '4px'
+          }}
+          itemStyle={{ color: 'hsl(var(--foreground))' }}
           formatter={(value, name) => {
             if (name === 'total_sales') return [formatCurrency(value as number), 'Sales'];
             return [value, 'Units'];
           }}
           labelFormatter={(label) => {
-            const item = formatted.find(d => d.dayLabel === label);
+            const item = fullWeek.find(d => d.dayLabel === label);
             return item ? item.day_name : label;
           }}
         />
         <Bar dataKey="total_sales" radius={[4, 4, 0, 0]}>
-          {formatted.map((_, index) => (
+          {fullWeek.map((_, index) => (
             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
           ))}
         </Bar>

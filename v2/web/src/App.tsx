@@ -5,7 +5,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
-import { PageSkeleton } from "./components/ui/skeleton";
 import { checkSession } from "./api/apiClient";
 
 // Lazy load pages for better performance
@@ -26,8 +25,11 @@ const queryClient = new QueryClient({
 
 function PageLoader() {
   return (
-    <div className="animate-fade-in">
-      <PageSkeleton />
+    <div className="animate-fade-in min-h-[50vh] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <p className="text-xs text-muted-foreground">Loading...</p>
+      </div>
     </div>
   );
 }
@@ -84,7 +86,9 @@ const App = () => (
                 path="/"
                 element={
                   <Suspense fallback={<PageLoader />}>
-                    <DashboardPage />
+                    <div className="animate-fade-in">
+                      <DashboardPage />
+                    </div>
                   </Suspense>
                 }
               />
@@ -92,7 +96,9 @@ const App = () => (
                 path="/graphics"
                 element={
                   <Suspense fallback={<PageLoader />}>
-                    <GraphicsPage />
+                    <div className="animate-fade-in">
+                      <GraphicsPage />
+                    </div>
                   </Suspense>
                 }
               />
@@ -100,7 +106,9 @@ const App = () => (
                 path="/balance"
                 element={
                   <Suspense fallback={<PageLoader />}>
-                    <BalancePage />
+                    <div className="animate-fade-in">
+                      <BalancePage />
+                    </div>
                   </Suspense>
                 }
               />
@@ -108,7 +116,9 @@ const App = () => (
                 path="/admin"
                 element={
                   <Suspense fallback={<PageLoader />}>
-                    <AdminPage />
+                    <div className="animate-fade-in">
+                      <AdminPage />
+                    </div>
                   </Suspense>
                 }
               />
@@ -119,7 +129,9 @@ const App = () => (
               path="*"
               element={
                 <Suspense fallback={<PageLoader />}>
-                  <NotFound />
+                  <div className="animate-fade-in">
+                    <NotFound />
+                  </div>
                 </Suspense>
               }
             />

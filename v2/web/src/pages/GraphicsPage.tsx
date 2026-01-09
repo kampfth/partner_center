@@ -142,6 +142,7 @@ export default function GraphicsPage() {
     return data.daily.map((d) => ({
       date: format(new Date(d.date), 'MMM dd'),
       sales: d.total_amount,
+      units: d.total_units,
     }));
   }, [data]);
 

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed (v2 - 2026-01-09 - Hotfix)
+- **Groups creation 400 error** — Frontend was sending `productIds` but backend expected `product_ids`; fixed API payload in `partnerApi.ts`
+- **MSFS 2020 vs 2024 shows 0** — Backend was checking `msfs_version` column but data is in `lever` column; updated `AnalyticsService.php` to detect version from lever ("Microsoft Flight Simulator" = 2020, "Microsoft Flight Simulator 2024" = 2024)
+- **Balance page infinite loading** — Fixed race condition in useEffect hooks; improved initialization flow with proper state management
+- **Weekday chart issues** — Fixed gray cursor background (added `cursor={false}`), wrong order (now Sunday-Saturday), black unreadable text (fixed tooltip colors), missing days (now shows all 7 days)
+- **Hot Time chart issues** — Changed from 4-hour to 2-hour intervals (12 bars), fixed gray cursor and black text in tooltip
+- **Dashboard cards CSS** — Fixed text truncation, borders cutting content, improved mobile sizing with responsive padding
+
+### Added (v2 - 2026-01-09 - Hotfix)
+- **Units line in Daily Sales chart** — Added cyan line showing units sold per day with dual Y-axis
+- **Avg/Day card in Dashboard** — New stat card showing average sales per day (now 5 cards: Total Sales, Units Sold, Avg/Day, Avg/Unit, Period)
+- **Smooth page transitions** — Added fade-in animations when navigating between pages
+- **HTACCESS_DEPLOY.md** — Comprehensive .htaccess configuration documentation for Hostinger deployment
+
+### Changed (v2 - 2026-01-09 - Hotfix)
+- Dashboard grid now uses 5-column layout on desktop, 3 on tablet, 2 on mobile
+- Hot Time chart now shows 12 bars (2-hour intervals) instead of 6 (4-hour intervals)
+- Weekday chart now ordered Sunday to Saturday (English)
+- Page loader now shows centered spinner instead of skeleton
+
 ### Fixed (v2 - 2026-01-09)
 - **Balance page permission denied** — Applied migration to grant `service_role` full access to all v2 tables including balance tables
 - **Graphics page "column lever does not exist"** — Removed `transactions.lever` dependency from AnalyticsService; MSFS version detection now uses only `msfs_version` column

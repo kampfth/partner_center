@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, lazy, Suspense, useCallback } from 'react';
 import { format, startOfMonth } from 'date-fns';
-import { DollarSign, TrendingUp, ShoppingCart, CalendarDays } from 'lucide-react';
+import { DollarSign, TrendingUp, ShoppingCart, CalendarDays, Activity } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,14 +23,14 @@ function formatCurrency(value: number): string {
 
 function StatCardSkeleton() {
   return (
-    <Card>
-      <CardContent className="p-4 pt-4">
-        <div className="flex items-center justify-between mb-3">
-          <Skeleton className="h-3 w-20" />
-          <Skeleton className="h-4 w-4 rounded" />
+    <Card className="overflow-hidden">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <Skeleton className="h-3 w-16 sm:w-20" />
+          <Skeleton className="h-4 w-4 rounded shrink-0" />
         </div>
-        <Skeleton className="h-7 w-24" />
-        <Skeleton className="h-3 w-16 mt-1.5" />
+        <Skeleton className="h-6 sm:h-7 w-20 sm:w-24" />
+        <Skeleton className="h-3 w-14 sm:w-16 mt-1" />
       </CardContent>
     </Card>
   );
@@ -48,17 +48,17 @@ function StatCard({
   subtitle?: string;
 }) {
   return (
-    <Card>
-      <CardContent className="p-4 pt-4">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+    <Card className="overflow-hidden">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <span className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">
             {title}
           </span>
-          <Icon className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+          <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
         </div>
-        <div className="text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
+        <div className="text-lg sm:text-2xl font-semibold tracking-tight tabular-nums truncate">{value}</div>
         {subtitle && (
-          <p className="text-xs text-muted-foreground mt-1.5">{subtitle}</p>
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 truncate">{subtitle}</p>
         )}
       </CardContent>
     </Card>
@@ -163,7 +163,8 @@ export default function DashboardPage() {
     const totalUnits = data.summary.reduce((sum, p) => sum + p.units_sold, 0);
     const avgPerUnit = totalUnits > 0 ? totalSales / totalUnits : 0;
     const daysWithData = data.daily.length;
-    return { totalSales, totalUnits, avgPerUnit, daysWithData };
+    const avgPerDay = daysWithData > 0 ? totalSales / daysWithData : 0;
+    return { totalSales, totalUnits, avgPerUnit, avgPerDay, daysWithData };
   }, [data]);
 
   const chartData = useMemo(() => {
@@ -252,10 +253,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+      {/* Stats - 5 cards: Total Sales, Units Sold, Avg/Day, Avg/Unit, Period */}
+      <div className="grid gap-2 sm:gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         {loading || initializing ? (
           <>
+            <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
@@ -263,31 +265,35 @@ export default function DashboardPage() {
           </>
         ) : stats ? (
           <>
-          <StatCard
-            title="Total Sales"
-            value={formatCurrency(stats.totalSales)}
-            icon={DollarSign}
-            subtitle={`${stats.daysWithData} days`}
-          />
-          <StatCard
+            <StatCard
+              title="Total Sales"
+              value={formatCurrency(stats.totalSales)}
+              icon={DollarSign}
+            />
+            <StatCard
               title="Units Sold"
               value={stats.totalUnits.toLocaleString()}
-            icon={ShoppingCart}
-          />
-          <StatCard
+              icon={ShoppingCart}
+            />
+            <StatCard
+              title="Avg/Day"
+              value={formatCurrency(stats.avgPerDay)}
+              icon={Activity}
+            />
+            <StatCard
               title="Avg/Unit"
               value={formatCurrency(stats.avgPerUnit)}
-            icon={TrendingUp}
-          />
-          <StatCard
-            title="Period"
-            value={`${stats.daysWithData}d`}
+              icon={TrendingUp}
+            />
+            <StatCard
+              title="Period"
+              value={`${stats.daysWithData}d`}
               icon={CalendarDays}
               subtitle={startDate && endDate ? `${format(new Date(startDate), 'MMM d')} – ${format(new Date(endDate), 'MMM d')}` : ''}
-          />
+            />
           </>
         ) : null}
-        </div>
+      </div>
 
       {/* Chart + Top Products Side by Side */}
       <div className="grid gap-4 lg:grid-cols-2">

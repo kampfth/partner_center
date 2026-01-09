@@ -7,7 +7,6 @@ import type {
   UploadResponse,
   SortOrder,
   ProductUpdate,
-  CreateGroupPayload,
   BalanceResponse,
   Expense,
   Withdrawal,
@@ -41,7 +40,8 @@ export async function fetchGroups(): Promise<Group[]> {
 }
 
 export async function createGroup(name: string, productIds: string[]): Promise<Group> {
-  const payload: CreateGroupPayload = { name, productIds };
+  // Backend expects product_ids (snake_case)
+  const payload = { name, product_ids: productIds };
   const response = await post<ApiResponse<Group>>('/groups', payload);
   return response.data;
 }

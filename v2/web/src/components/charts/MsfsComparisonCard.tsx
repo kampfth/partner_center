@@ -14,9 +14,10 @@ function formatCurrency(value: number): string {
 }
 
 export default function MsfsComparisonCard({ data }: MsfsComparisonCardProps) {
-  const msfs2020 = data.find(d => d.version === '2020') || { total_sales: 0, units: 0 };
-  const msfs2024 = data.find(d => d.version === '2024') || { total_sales: 0, units: 0 };
-  const unknown = data.find(d => d.version === 'Unknown' || d.version === null) || { total_sales: 0, units: 0 };
+  // Handle both old format (MSFS2020/MSFS2024) and new format (2020/2024)
+  const msfs2020 = data.find(d => d.version === '2020' || d.version === 'MSFS2020') || { total_sales: 0, units: 0 };
+  const msfs2024 = data.find(d => d.version === '2024' || d.version === 'MSFS2024') || { total_sales: 0, units: 0 };
+  const unknown = data.find(d => d.version === 'Unknown' || d.version === null || (d.version !== '2020' && d.version !== '2024' && d.version !== 'MSFS2020' && d.version !== 'MSFS2024')) || { total_sales: 0, units: 0 };
 
   const total = msfs2020.total_sales + msfs2024.total_sales + unknown.total_sales;
   const percent2020 = total > 0 ? (msfs2020.total_sales / total) * 100 : 0;

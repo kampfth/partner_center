@@ -52,6 +52,7 @@ export default function BalancePage() {
   const [sortOrder, setSortOrder] = useState<SortOrder | null>(null);
   const [mobileMonth, setMobileMonth] = useState<string>('TOTAL');
   const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -74,28 +75,62 @@ export default function BalancePage() {
     note: '',
   });
 
-  const loadStatic = useCallback(async () => {
-    try {
-      const [so, ys] = await Promise.all([
-        fetchSortOrder(),
-        fetchBalanceYears(),
-      ]);
+  // Load years and sort order on mount
+  useEffect(() => {
+    let mounted = true;
+    
+    async function init() {
+      try {
+        const [so, ys] = await Promise.all([
+          fetchSortOrder().catch(() => ({ value: [] })),
+          fetchBalanceYears().catch(() => ({ years: [] })),
+        ]);
 
-      setSortOrder(so ?? null);
+        if (!mounted) return;
 
-      const yearsArr = Array.isArray(ys?.years) ? ys.years : [];
-      setYears(yearsArr);
-      if (yearsArr.length) {
-        const latest = yearsArr[yearsArr.length - 1];
-        setYear(latest);
+        setSortOrder(so ?? { value: [] });
+
+        const yearsArr = Array.isArray(ys?.years) ? ys.years : [];
+        setYears(yearsArr);
+        
+        // Set year to latest available, or current year if no data
+        const targetYear = yearsArr.length > 0 
+          ? yearsArr[yearsArr.length - 1] 
+          : new Date().getFullYear();
+        setYear(targetYear);
+        
+        // Now load balance data for the target year
+        try {
+          const balanceData = await fetchBalance(targetYear);
+          if (mounted) {
+            setData(balanceData);
+          }
+        } catch (err) {
+          if (mounted) {
+            setError(err instanceof Error ? err.message : 'Failed to load balance');
+          }
+        }
+      } catch (e) {
+        console.warn('Balance init failed', e);
+        if (mounted) {
+          setError('Failed to initialize balance page');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+          setInitializing(false);
+        }
       }
-    } catch (e) {
-      // Keep the page usable even if years/sort order fail
-      console.warn('Balance static load failed', e);
     }
+    
+    init();
+    return () => { mounted = false; };
   }, []);
 
+  // Load data when year changes (after initialization)
   const loadData = useCallback(async (targetYear?: number) => {
+    if (initializing) return;
+    
     setLoading(true);
     setError(null);
     try {
@@ -112,16 +147,14 @@ export default function BalancePage() {
     } finally {
       setLoading(false);
     }
-  }, [year, mobileMonth]);
+  }, [year, mobileMonth, initializing]);
 
+  // Reload when year changes (but not on initial load)
   useEffect(() => {
-    loadStatic();
-  }, [loadStatic]);
-
-  useEffect(() => {
-    // Load balance data whenever year changes
-    loadData(year);
-  }, [loadData, year]);
+    if (!initializing) {
+      loadData(year);
+    }
+  }, [year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreateExpense = async () => {
     try {
