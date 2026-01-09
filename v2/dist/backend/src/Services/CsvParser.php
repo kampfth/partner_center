@@ -10,15 +10,16 @@ namespace App\Services;
 class CsvParser
 {
     // Header mapping: CSV column (lowercase) -> internal field
+    // Standard names match Microsoft Partner Center CSV format
     public const HEADER_MAP = [
-        'earningid' => 'earning_id',
-        'transactiondate' => 'purchase_date',
-        'transactionamount' => 'amount_usd',
-        'lever' => 'lever',
-        'productname' => 'product_name',
-        'productid' => 'product_id',
-        'transactioncountrycode' => 'customer_country',
-        'externalreferenceidlabel' => 'external_label',
+        'earningid'               => 'earning_id',
+        'transactiondate'         => 'transaction_date',
+        'transactionamount'       => 'transaction_amount',
+        'lever'                   => 'lever',
+        'productname'             => 'product_name',
+        'productid'               => 'product_id',
+        'transactioncountrycode'  => 'transaction_country_code',
+        'externalreferenceidlabel'=> 'external_reference_label',
     ];
 
     public function mapHeaders(array $headers): array
@@ -58,6 +59,6 @@ class CsvParser
     {
         return !empty($data['product_id']) 
             && !empty($data['earning_id']) 
-            && !empty($data['purchase_date']);
+            && !empty($data['transaction_date']);
     }
 }

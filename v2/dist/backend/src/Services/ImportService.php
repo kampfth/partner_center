@@ -142,14 +142,15 @@ class ImportService
                 continue;
             }
 
+            // Use standard column names matching CSV format
             $transactionsBatch[] = [
-                'earning_id' => $data['earning_id'],
-                'product_id' => $data['product_id'],
-                'customer_country' => $data['customer_country'],
-                'purchase_date' => $data['purchase_date'],
-                'units' => 1,
-                'amount_usd' => (float)$data['amount_usd'],
-                'msfs_version' => $this->parser->parseMsfsVersion($data['external_label'] ?? ''),
+                'earning_id'               => $data['earning_id'],
+                'product_id'               => $data['product_id'],
+                'transaction_country_code' => $data['transaction_country_code'],
+                'transaction_date'         => $data['transaction_date'],
+                'units'                    => 1,
+                'transaction_amount'       => (float)$data['transaction_amount'],
+                'msfs_version'             => $this->parser->parseMsfsVersion($data['external_reference_label'] ?? ''),
             ];
 
             if (count($transactionsBatch) >= 500) {

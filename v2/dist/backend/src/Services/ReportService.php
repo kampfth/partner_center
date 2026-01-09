@@ -43,13 +43,13 @@ class ReportService
 
     public function getDateRange(): array
     {
-        // Get min date
-        $minResult = $this->db->select('transactions', 'select=purchase_date&order=purchase_date.asc&limit=1');
-        $minDate = $minResult[0]['purchase_date'] ?? null;
+        // Get min date using standard column name
+        $minResult = $this->db->select('transactions', 'select=transaction_date&order=transaction_date.asc&limit=1');
+        $minDate = $minResult[0]['transaction_date'] ?? null;
 
-        // Get max date
-        $maxResult = $this->db->select('transactions', 'select=purchase_date&order=purchase_date.desc&limit=1');
-        $maxDate = $maxResult[0]['purchase_date'] ?? null;
+        // Get max date using standard column name
+        $maxResult = $this->db->select('transactions', 'select=transaction_date&order=transaction_date.desc&limit=1');
+        $maxDate = $maxResult[0]['transaction_date'] ?? null;
 
         return [
             'min_date' => $minDate,

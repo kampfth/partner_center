@@ -38,9 +38,10 @@ class ImportServiceTest
             $headers = ['earningid', 'productid', 'transactiondate', 'transactionamount', 'lever', 'productname', 'transactioncountrycode', 'externalreferenceidlabel'];
             $map = $this->mapHeaders($headers);
             
+            // Use standard column names matching CSV format
             return isset($map['earning_id']) 
                 && isset($map['product_id']) 
-                && isset($map['purchase_date'])
+                && isset($map['transaction_date'])
                 && $map['earning_id'] === 0
                 && $map['product_id'] === 1;
         });
@@ -97,12 +98,13 @@ class ImportServiceTest
             $map = $this->mapHeaders($headers);
             $data = $this->extractRow($row, $map);
             
+            // Use standard column names matching CSV format
             return $data['earning_id'] === 'E123'
                 && $data['product_id'] === 'P456'
-                && $data['purchase_date'] === '2026-01-08'
-                && $data['amount_usd'] === '99.99'
+                && $data['transaction_date'] === '2026-01-08'
+                && $data['transaction_amount'] === '99.99'
                 && $data['product_name'] === 'Test Product'
-                && $data['customer_country'] === 'US';
+                && $data['transaction_country_code'] === 'US';
         });
 
         $this->test('CSV parsing - handles missing columns gracefully', function () {

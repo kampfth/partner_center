@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-01-09 - Enterprise Refactor
+
+### 🏗️ Major Architecture Changes
+
+#### Data Dictionary Standardization
+- **Created `docs/DATA_DICTIONARY.md`** — Single source of truth for all column names
+- **Standard naming convention** — All columns now match Microsoft Partner Center CSV format exactly
+- **Database migration applied** — Renamed columns in `v2.transactions`:
+  - `purchase_date` → `transaction_date` (now `timestamptz` for time-based analytics)
+  - `amount_usd` → `transaction_amount`
+  - `customer_country` → `transaction_country_code`
+- **Updated `daily_sales` view** — Uses new column names
+- **Updated `get_product_summary` function** — Uses new column names
+
+#### Backend Standardization
+- **CsvParser.php** — Header mapping now uses standard names:
+  - `transactiondate` → `transaction_date`
+  - `transactionamount` → `transaction_amount`
+  - `transactioncountrycode` → `transaction_country_code`
+  - `externalreferenceidlabel` → `external_reference_label`
+- **ImportService.php** — Transaction inserts use standard column names
+- **AnalyticsService.php** — All queries use `transaction_date`, `transaction_amount`
+- **ReportService.php** — Date range queries use `transaction_date`
+- **BalanceService.php** — Year detection uses `transaction_date`
+- **Tests updated** — All assertions use new standard names
+
+### Why This Matters
+- **No more column name confusion** — CSV → DB → API → Frontend all use consistent names
+- **Easier debugging** — When you see `transaction_date` anywhere, it means the same thing
+- **Future-proof** — Adding new CSV columns follows the same pattern
+- **Professional codebase** — Enterprise-grade naming conventions
+
+---
+
 ### Fixed (v2 - 2026-01-09 - Hotfix)
 - **Groups creation 400 error** — Frontend was sending `productIds` but backend expected `product_ids`; fixed API payload in `partnerApi.ts`
 - **MSFS 2020 vs 2024 shows 0** — Backend was checking `msfs_version` column but data is in `lever` column; updated `AnalyticsService.php` to detect version from lever ("Microsoft Flight Simulator" = 2020, "Microsoft Flight Simulator 2024" = 2024)
