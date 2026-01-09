@@ -51,9 +51,11 @@ class ReportService
         $maxResult = $this->db->select('transactions', 'select=transaction_date&order=transaction_date.desc&limit=1');
         $maxDate = $maxResult[0]['transaction_date'] ?? null;
 
+        // Extract only YYYY-MM-DD from timestamptz (format: "2026-01-06 00:00:00+00")
+        // This ensures frontend receives clean dates for date pickers and API calls
         return [
-            'min_date' => $minDate,
-            'max_date' => $maxDate,
+            'min_date' => $minDate ? substr($minDate, 0, 10) : null,
+            'max_date' => $maxDate ? substr($maxDate, 0, 10) : null,
         ];
     }
 
