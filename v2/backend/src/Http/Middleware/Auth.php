@@ -19,11 +19,22 @@ class Auth
     public static function init(): void
     {
         if (session_status() === PHP_SESSION_NONE) {
+            // Use var directory for session storage (more reliable on shared hosting)
+            $sessionPath = defined('VAR_DIR') ? VAR_DIR . '/sessions' : sys_get_temp_dir();
+            if (!is_dir($sessionPath)) {
+                @mkdir($sessionPath, 0755, true);
+            }
+            if (is_writable($sessionPath)) {
+                ini_set('session.save_path', $sessionPath);
+            }
+            
             // Secure session settings
             ini_set('session.use_strict_mode', '1');
             ini_set('session.cookie_httponly', '1');
             ini_set('session.use_only_cookies', '1');
-            ini_set('session.cookie_samesite', 'Strict');
+            
+            // Use Lax instead of Strict for better compatibility with redirects
+            ini_set('session.cookie_samesite', 'Lax');
 
             if (self::isHttps()) {
                 ini_set('session.cookie_secure', '1');
@@ -35,7 +46,7 @@ class Auth
                 'domain' => '',
                 'secure' => self::isHttps(),
                 'httponly' => true,
-                'samesite' => 'Strict',
+                'samesite' => 'Lax',
             ]);
 
             session_start();
