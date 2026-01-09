@@ -99,11 +99,11 @@ class BalanceService
 
     public function getAvailableYears(): array
     {
-        $min = $this->db->select('transactions', 'select=purchase_date&order=purchase_date.asc&limit=1');
-        $max = $this->db->select('transactions', 'select=purchase_date&order=purchase_date.desc&limit=1');
+        $min = $this->db->select('transactions', 'select=transaction_date&order=transaction_date.asc&limit=1');
+        $max = $this->db->select('transactions', 'select=transaction_date&order=transaction_date.desc&limit=1');
         
-        $minYear = isset($min[0]['purchase_date']) ? (int)substr($min[0]['purchase_date'], 0, 4) : null;
-        $maxYear = isset($max[0]['purchase_date']) ? (int)substr($max[0]['purchase_date'], 0, 4) : null;
+        $minYear = isset($min[0]['transaction_date']) ? (int)substr($min[0]['transaction_date'], 0, 4) : null;
+        $maxYear = isset($max[0]['transaction_date']) ? (int)substr($max[0]['transaction_date'], 0, 4) : null;
         
         if (!$minYear || !$maxYear || $minYear > $maxYear) {
             return [];
