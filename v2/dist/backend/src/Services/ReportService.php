@@ -73,10 +73,13 @@ class ReportService
     private function getProductSummary(string $startDate, string $endDate): array
     {
         try {
-            return $this->db->rpc('get_product_summary', [
+            $summary = $this->db->rpc('get_product_summary', [
                 'start_date' => $startDate,
                 'end_date' => $endDate,
             ]);
+            
+            // Apply PHP-level Rentals merging as safety layer
+            return $this->mergeRentalsIntoBase($summary);
         } catch (\Throwable $e) {
             // If RPC doesn't exist, return empty summary
             if (str_contains($e->getMessage(), 'function') || str_contains($e->getMessage(), '404')) {
@@ -84,6 +87,49 @@ class ReportService
             }
             throw $e;
         }
+    }
+
+    /**
+     * Merge Rentals products into their base products
+     * Rentals products (ending with " Rentals") should be merged into the base product
+     * This is a PHP safety layer - SQL function should already handle this
+     */
+    private function mergeRentalsIntoBase(array $summary): array
+    {
+        $baseProducts = [];
+        $rentalsProducts = [];
+        
+        // Separate base and rentals products
+        foreach ($summary as $item) {
+            $name = $item['display_name'] ?? '';
+            if (str_ends_with($name, ' Rentals')) {
+                $baseName = substr($name, 0, -8); // Remove " Rentals" suffix
+                $rentalsProducts[$baseName] = $item;
+            } else {
+                $baseProducts[$name] = $item;
+            }
+        }
+        
+        // Merge rentals into base products
+        foreach ($rentalsProducts as $baseName => $rentalsItem) {
+            if (isset($baseProducts[$baseName])) {
+                // Merge amounts and units
+                $baseProducts[$baseName]['units_sold'] = 
+                    (int)($baseProducts[$baseName]['units_sold'] ?? 0) + 
+                    (int)($rentalsItem['units_sold'] ?? 0);
+                $baseProducts[$baseName]['total_amount'] = 
+                    (float)($baseProducts[$baseName]['total_amount'] ?? 0) + 
+                    (float)($rentalsItem['total_amount'] ?? 0);
+            }
+            // If no base product exists, don't include rentals separately
+            // (it would appear as "orphan" rental which shouldn't happen)
+        }
+        
+        // Return only base products (sorted by total_amount desc)
+        $result = array_values($baseProducts);
+        usort($result, fn($a, $b) => ($b['total_amount'] ?? 0) <=> ($a['total_amount'] ?? 0));
+        
+        return $result;
     }
 
     private function isValidDate(string $date): bool

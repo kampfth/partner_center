@@ -17,6 +17,9 @@ class AnalyticsService
     // 2-hour intervals (12 buckets)
     private const TIME_BUCKETS = ['00-02', '02-04', '04-06', '06-08', '08-10', '10-12', '12-14', '14-16', '16-18', '18-20', '20-22', '22-24'];
 
+    // Cache for product lever lookup
+    private array $productLeverCache = [];
+
     public function __construct()
     {
         $this->db = new SupabaseClient();
@@ -81,12 +84,19 @@ class AnalyticsService
 
     public function byMsfsVersion(string $start, string $end): array
     {
-        $transactions = $this->getTransactions($start, $end);
+        $transactions = $this->getTransactionsWithProductId($start, $end);
+        
+        // Load product lever cache
+        $this->loadProductLeverCache();
         
         $byVersion = [];
         foreach ($transactions as $tx) {
-            // Use msfs_version column to detect MSFS version
-            $version = $this->detectMsfsVersion($tx['msfs_version'] ?? '');
+            // Get lever from all_products table via cache
+            $productId = $tx['product_id'] ?? '';
+            $lever = $this->productLeverCache[$productId] ?? '';
+            
+            // Detect version from lever
+            $version = $this->detectVersionFromLever($lever);
             
             if (!isset($byVersion[$version])) {
                 $byVersion[$version] = ['total_sales' => 0, 'units' => 0];
@@ -111,25 +121,50 @@ class AnalyticsService
     private function getTransactions(string $start, string $end): array
     {
         $nextDay = date('Y-m-d', strtotime($end . ' +1 day'));
-        // Use standard column names matching CSV format
         return $this->db->select('transactions',
-            "select=transaction_date,transaction_amount,msfs_version&transaction_date=gte.{$start}&transaction_date=lt.{$nextDay}");
+            "select=transaction_date,transaction_amount&transaction_date=gte.{$start}&transaction_date=lt.{$nextDay}");
+    }
+
+    private function getTransactionsWithProductId(string $start, string $end): array
+    {
+        $nextDay = date('Y-m-d', strtotime($end . ' +1 day'));
+        return $this->db->select('transactions',
+            "select=product_id,transaction_date,transaction_amount&transaction_date=gte.{$start}&transaction_date=lt.{$nextDay}");
     }
 
     /**
-     * Detect MSFS version from msfs_version column
-     * Values are typically "2020" or "2024"
+     * Load product lever cache from all_products table
      */
-    private function detectMsfsVersion(string $msfsVersion): string
+    private function loadProductLeverCache(): void
     {
-        if (stripos($msfsVersion, '2024') !== false) {
+        if (!empty($this->productLeverCache)) {
+            return;
+        }
+        
+        $products = $this->db->select('all_products', 'select=product_id,lever');
+        foreach ($products as $p) {
+            $this->productLeverCache[$p['product_id']] = $p['lever'] ?? '';
+        }
+    }
+
+    /**
+     * Detect MSFS version from lever column
+     * - "Microsoft Flight Simulator" = 2020
+     * - "Microsoft Flight Simulator 2024" = 2024
+     */
+    private function detectVersionFromLever(string $lever): string
+    {
+        if ($lever === 'Microsoft Flight Simulator 2024') {
             return '2024';
         }
-        if (stripos($msfsVersion, '2020') !== false) {
+        if ($lever === 'Microsoft Flight Simulator') {
             return '2020';
         }
-        // If it contains "Microsoft Flight Simulator" without year, it's 2020
-        if (stripos($msfsVersion, 'Microsoft Flight Simulator') !== false) {
+        // Fallback pattern matching
+        if (stripos($lever, '2024') !== false) {
+            return '2024';
+        }
+        if (stripos($lever, 'Microsoft Flight Simulator') !== false) {
             return '2020';
         }
         return 'Unknown';
