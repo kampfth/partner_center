@@ -28,8 +28,8 @@ class AnalyticsService
         
         $byDay = array_fill(0, 7, ['total_sales' => 0, 'units' => 0]);
         foreach ($transactions as $tx) {
-            $dayOfWeek = (int)date('w', strtotime($tx['transaction_date']));
-            $byDay[$dayOfWeek]['total_sales'] += (float)($tx['transaction_amount'] ?? 0);
+            $dayOfWeek = (int)date('w', strtotime($tx['purchase_date']));
+            $byDay[$dayOfWeek]['total_sales'] += (float)($tx['amount_usd'] ?? 0);
             $byDay[$dayOfWeek]['units']++;
         }
         
@@ -55,14 +55,14 @@ class AnalyticsService
         // 12 buckets for 2-hour intervals
         $byBucket = array_fill(0, 12, ['total_sales' => 0, 'units' => 0]);
         foreach ($transactions as $tx) {
-            // Note: transaction_date may not have time component, default to 0
+            // Note: purchase_date may not have time component, default to 0
             $hour = 0;
-            if (strlen($tx['transaction_date'] ?? '') > 10) {
-                $hour = (int)date('H', strtotime($tx['transaction_date']));
+            if (strlen($tx['purchase_date'] ?? '') > 10) {
+                $hour = (int)date('H', strtotime($tx['purchase_date']));
             }
             // 2-hour intervals: 0-1 -> bucket 0, 2-3 -> bucket 1, etc.
             $bucketNum = (int)floor($hour / 2);
-            $byBucket[$bucketNum]['total_sales'] += (float)($tx['transaction_amount'] ?? 0);
+            $byBucket[$bucketNum]['total_sales'] += (float)($tx['amount_usd'] ?? 0);
             $byBucket[$bucketNum]['units']++;
         }
         
@@ -85,13 +85,13 @@ class AnalyticsService
         
         $byVersion = [];
         foreach ($transactions as $tx) {
-            // Use lever column to detect MSFS version
-            $version = $this->detectVersionFromLever($tx['lever'] ?? '');
+            // Use msfs_version column to detect MSFS version
+            $version = $this->detectMsfsVersion($tx['msfs_version'] ?? '');
             
             if (!isset($byVersion[$version])) {
                 $byVersion[$version] = ['total_sales' => 0, 'units' => 0];
             }
-            $byVersion[$version]['total_sales'] += (float)($tx['transaction_amount'] ?? 0);
+            $byVersion[$version]['total_sales'] += (float)($tx['amount_usd'] ?? 0);
             $byVersion[$version]['units']++;
         }
         
@@ -112,21 +112,23 @@ class AnalyticsService
     {
         $nextDay = date('Y-m-d', strtotime($end . ' +1 day'));
         return $this->db->select('transactions',
-            "select=transaction_date,transaction_amount,lever&transaction_date=gte.{$start}&transaction_date=lt.{$nextDay}");
+            "select=purchase_date,amount_usd,msfs_version&purchase_date=gte.{$start}&purchase_date=lt.{$nextDay}");
     }
 
     /**
-     * Detect MSFS version from lever column
-     * "Microsoft Flight Simulator" = MSFS 2020
-     * "Microsoft Flight Simulator 2024" = MSFS 2024
+     * Detect MSFS version from msfs_version column
+     * Values are typically "2020" or "2024"
      */
-    private function detectVersionFromLever(string $lever): string
+    private function detectMsfsVersion(string $msfsVersion): string
     {
-        if (stripos($lever, '2024') !== false) {
+        if (stripos($msfsVersion, '2024') !== false) {
             return '2024';
         }
-        // "Microsoft Flight Simulator" without year = 2020
-        if (stripos($lever, 'Microsoft Flight Simulator') !== false) {
+        if (stripos($msfsVersion, '2020') !== false) {
+            return '2020';
+        }
+        // If it contains "Microsoft Flight Simulator" without year, it's 2020
+        if (stripos($msfsVersion, 'Microsoft Flight Simulator') !== false) {
             return '2020';
         }
         return 'Unknown';
