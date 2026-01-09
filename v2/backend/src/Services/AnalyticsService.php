@@ -28,8 +28,8 @@ class AnalyticsService
         
         $byDay = array_fill(0, 7, ['total_sales' => 0, 'units' => 0]);
         foreach ($transactions as $tx) {
-            $dayOfWeek = (int)date('w', strtotime($tx['purchase_date']));
-            $byDay[$dayOfWeek]['total_sales'] += (float)($tx['amount_usd'] ?? 0);
+            $dayOfWeek = (int)date('w', strtotime($tx['transaction_date']));
+            $byDay[$dayOfWeek]['total_sales'] += (float)($tx['transaction_amount'] ?? 0);
             $byDay[$dayOfWeek]['units']++;
         }
         
@@ -55,14 +55,14 @@ class AnalyticsService
         // 12 buckets for 2-hour intervals
         $byBucket = array_fill(0, 12, ['total_sales' => 0, 'units' => 0]);
         foreach ($transactions as $tx) {
-            // Note: purchase_date may not have time component, default to 0
+            // Note: transaction_date may not have time component, default to 0
             $hour = 0;
-            if (strlen($tx['purchase_date'] ?? '') > 10) {
-                $hour = (int)date('H', strtotime($tx['purchase_date']));
+            if (strlen($tx['transaction_date'] ?? '') > 10) {
+                $hour = (int)date('H', strtotime($tx['transaction_date']));
             }
             // 2-hour intervals: 0-1 -> bucket 0, 2-3 -> bucket 1, etc.
             $bucketNum = (int)floor($hour / 2);
-            $byBucket[$bucketNum]['total_sales'] += (float)($tx['amount_usd'] ?? 0);
+            $byBucket[$bucketNum]['total_sales'] += (float)($tx['transaction_amount'] ?? 0);
             $byBucket[$bucketNum]['units']++;
         }
         
@@ -91,7 +91,7 @@ class AnalyticsService
             if (!isset($byVersion[$version])) {
                 $byVersion[$version] = ['total_sales' => 0, 'units' => 0];
             }
-            $byVersion[$version]['total_sales'] += (float)($tx['amount_usd'] ?? 0);
+            $byVersion[$version]['total_sales'] += (float)($tx['transaction_amount'] ?? 0);
             $byVersion[$version]['units']++;
         }
         
@@ -112,7 +112,7 @@ class AnalyticsService
     {
         $nextDay = date('Y-m-d', strtotime($end . ' +1 day'));
         return $this->db->select('transactions',
-            "select=purchase_date,amount_usd,lever&purchase_date=gte.{$start}&purchase_date=lt.{$nextDay}");
+            "select=transaction_date,transaction_amount,lever&transaction_date=gte.{$start}&transaction_date=lt.{$nextDay}");
     }
 
     /**
