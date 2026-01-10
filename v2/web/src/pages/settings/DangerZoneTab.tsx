@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { AlertTriangle, Trash2, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Trash2, RotateCcw, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Modal } from '@/components/ui/Modal';
-import { truncateTable, resetAll } from '@/api/partnerApi';
+import { truncateTable, truncateTransactionsByDate, resetAll } from '@/api/partnerApi';
 import { useToast } from '@/hooks/use-toast';
 
 interface DangerAction {
@@ -14,37 +14,61 @@ interface DangerAction {
   description: string;
   confirmText: string;
   action: () => Promise<void>;
+  requiresDate?: boolean;
 }
 
 export function DangerZoneTab() {
   const [activeAction, setActiveAction] = useState<DangerAction | null>(null);
   const [confirmInput, setConfirmInput] = useState('');
+  const [dateInput, setDateInput] = useState('');
   const [executing, setExecuting] = useState(false);
   const { toast } = useToast();
 
   const dangerActions: DangerAction[] = [
     {
       id: 'clear_transactions',
-      title: 'Clear Transactions',
-      description: 'Delete all transaction records. This cannot be undone.',
+      title: 'Clear All Transactions',
+      description: 'Delete ALL transaction records from the database. This cannot be undone.',
       confirmText: 'DELETE',
       action: async () => {
         await truncateTable('transactions');
       },
     },
     {
-      id: 'clear_audit',
-      title: 'Clear Audit Logs',
-      description: 'Delete all audit log entries. This cannot be undone.',
+      id: 'clear_transactions_by_date',
+      title: 'Clear Transactions by Date',
+      description: 'Delete all transactions from a specific date onwards. Useful for re-importing data.',
+      confirmText: 'DELETE',
+      requiresDate: true,
+      action: async () => {
+        if (!dateInput) throw new Error('Date is required');
+        await truncateTransactionsByDate(dateInput);
+      },
+    },
+    {
+      id: 'clear_products',
+      title: 'Clear All Products',
+      description: 'Delete all discovered products from the database. You will need to re-import CSVs to discover them again.',
       confirmText: 'DELETE',
       action: async () => {
-        await truncateTable('audit_logs');
+        // First clear tracked products, then all_products
+        await truncateTable('products');
+        await truncateTable('all_products');
+      },
+    },
+    {
+      id: 'clear_groups',
+      title: 'Clear All Groups',
+      description: 'Delete all product groups. Products will be ungrouped but remain in the system.',
+      confirmText: 'DELETE',
+      action: async () => {
+        await truncateTable('product_groups');
       },
     },
     {
       id: 'reset_all',
-      title: 'Reset All Data',
-      description: 'Delete ALL data including products, groups, and transactions. This is a complete factory reset.',
+      title: 'Reset Entire Database',
+      description: 'Delete ALL data: transactions, products, groups, balance data, and import history. Complete factory reset.',
       confirmText: 'RESET',
       action: async () => {
         await resetAll();
@@ -59,6 +83,15 @@ export function DangerZoneTab() {
         variant: 'destructive',
         title: 'Confirmation failed',
         description: `Please type "${activeAction.confirmText}" to confirm`,
+      });
+      return;
+    }
+
+    if (activeAction.requiresDate && !dateInput) {
+      toast({
+        variant: 'destructive',
+        title: 'Date required',
+        description: 'Please select a date',
       });
       return;
     }
@@ -85,6 +118,7 @@ export function DangerZoneTab() {
   const closeModal = () => {
     setActiveAction(null);
     setConfirmInput('');
+    setDateInput('');
   };
 
   return (
@@ -116,6 +150,8 @@ export function DangerZoneTab() {
               >
                 {action.id === 'reset_all' ? (
                   <RotateCcw className="mr-2 h-4 w-4" />
+                ) : action.requiresDate ? (
+                  <Calendar className="mr-2 h-4 w-4" />
                 ) : (
                   <Trash2 className="mr-2 h-4 w-4" />
                 )}
@@ -139,7 +175,7 @@ export function DangerZoneTab() {
             <Button
               variant="destructive"
               onClick={handleExecute}
-              disabled={executing || confirmInput !== activeAction?.confirmText}
+              disabled={executing || confirmInput !== activeAction?.confirmText || (activeAction?.requiresDate && !dateInput)}
             >
               {executing ? 'Executing...' : 'Confirm'}
             </Button>
@@ -152,6 +188,22 @@ export function DangerZoneTab() {
               <strong>Warning:</strong> {activeAction?.description}
             </p>
           </div>
+          
+          {activeAction?.requiresDate && (
+            <div className="space-y-2">
+              <Label htmlFor="date-input">
+                Delete transactions from this date onwards
+              </Label>
+              <Input
+                id="date-input"
+                type="date"
+                value={dateInput}
+                onChange={(e) => setDateInput(e.target.value)}
+                className="font-mono"
+              />
+            </div>
+          )}
+          
           <div className="space-y-2">
             <Label htmlFor="confirm">
               Type <strong>{activeAction?.confirmText}</strong> to confirm

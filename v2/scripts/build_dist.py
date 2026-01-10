@@ -143,16 +143,12 @@ Options -Indexes
 
 def create_env_example():
     """Create .env.example for backend"""
-    env_content = """# Supabase Configuration
+    env_content = """# Supabase Configuration (REQUIRED)
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=eyJ...your-service-role-key
 
-# App Configuration
-APP_ENV=production
-APP_DEBUG=false
-
-# Session
-SESSION_LIFETIME=3600
+# TOTP Secret (auto-generated on first login if not set)
+# TOTP_SECRET=BASE32SECRET
 """
     
     env_path = os.path.join(DIST_DIR, 'backend', '.env.example')
@@ -160,6 +156,40 @@ SESSION_LIFETIME=3600
         f.write(env_content)
     
     print(f"[OK] Created {env_path}")
+
+def create_backend_htaccess():
+    """Create backend .htaccess to protect sensitive files"""
+    htaccess_content = """# Backend Security
+RewriteEngine On
+
+# Only allow access to index.php
+<FilesMatch "^(?!index\\.php$).*\\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect .env files
+<FilesMatch "^\\.env">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect src directory from direct access
+<IfModule mod_rewrite.c>
+    RewriteRule ^src/ - [F,L]
+    RewriteRule ^var/ - [F,L]
+    RewriteRule ^tests/ - [F,L]
+</IfModule>
+
+# Disable directory listing
+Options -Indexes
+"""
+    
+    htaccess_path = os.path.join(DIST_DIR, 'backend', '.htaccess')
+    with open(htaccess_path, 'w', encoding='utf-8') as f:
+        f.write(htaccess_content)
+    
+    print(f"[OK] Created {htaccess_path}")
 
 def create_readme():
     """Create deployment README"""
@@ -254,6 +284,7 @@ def main():
     build_frontend()
     copy_backend()
     create_root_htaccess()
+    create_backend_htaccess()
     create_env_example()
     create_readme()
     print_summary()

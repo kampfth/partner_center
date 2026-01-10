@@ -94,6 +94,11 @@ export async function truncateTable(table: string): Promise<{ success: boolean }
   return { success: true };
 }
 
+export async function truncateTransactionsByDate(fromDate: string): Promise<{ success: boolean }> {
+  await post<{ success: boolean }>('/admin/truncate-by-date', { from_date: fromDate });
+  return { success: true };
+}
+
 export async function resetAll(): Promise<{ success: boolean }> {
   await post<{ success: boolean }>('/admin/reset', {});
   return { success: true };

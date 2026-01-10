@@ -1,19 +1,24 @@
-# v2/backend/public/.htaccess
-# Rewrite all requests to index.php (single entry point)
+# Backend Security
+RewriteEngine On
 
+# Only allow access to index.php
+<FilesMatch "^(?!index\.php$).*\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect .env files
+<FilesMatch "^\.env">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect src directory from direct access
 <IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase /
-
-    # Skip existing files and directories
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-
-    # Route everything to index.php
-    RewriteRule ^(.*)$ index.php [QSA,L]
+    RewriteRule ^src/ - [F,L]
+    RewriteRule ^var/ - [F,L]
+    RewriteRule ^tests/ - [F,L]
 </IfModule>
 
-# Security: deny access to sensitive files
-<FilesMatch "^\.">
-    Require all denied
-</FilesMatch>
+# Disable directory listing
+Options -Indexes

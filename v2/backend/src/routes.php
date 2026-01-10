@@ -97,4 +97,5 @@ $router->get('/api/analytics/msfs-version', fn(Request $r) => (new AnalyticsCont
 
 // === Admin (Danger Zone) ===
 $router->post('/api/admin/truncate', fn(Request $r) => (new AdminController())->truncate($r));
+$router->post('/api/admin/truncate-by-date', fn(Request $r) => (new AdminController())->truncateByDate($r));
 $router->post('/api/admin/reset', fn(Request $r) => (new AdminController())->reset($r));
