@@ -81,32 +81,23 @@ class AnalyticsService
 
     public function byMsfsVersion(string $start, string $end): array
     {
-        // Use the pre-aggregated view that already joins transactions with all_products
-        // This is more reliable than PHP-side matching
-        $rows = $this->db->select('sales_by_msfs_version',
-            "select=version,total_sales,units&sale_date=gte.{$start}&sale_date=lte.{$end}");
-        
-        // Aggregate results by version
-        $byVersion = [];
-        foreach ($rows as $row) {
-            $version = $row['version'] ?? 'Unknown';
-            if (!isset($byVersion[$version])) {
-                $byVersion[$version] = ['total_sales' => 0, 'units' => 0];
-            }
-            $byVersion[$version]['total_sales'] += (float)($row['total_sales'] ?? 0);
-            $byVersion[$version]['units'] += (int)($row['units'] ?? 0);
-        }
+        // Use RPC that joins transactions with all_products and groups by lever
+        // lever = "Microsoft Flight Simulator" -> 2020
+        // lever = "Microsoft Flight Simulator 2024" -> 2024
+        $rows = $this->db->rpc('get_sales_by_msfs_version', [
+            'p_start_date' => $start,
+            'p_end_date' => $end,
+        ]);
         
         $result = [];
-        foreach ($byVersion as $version => $data) {
+        foreach ($rows as $row) {
             $result[] = [
-                'version' => $version,
-                'total_sales' => $data['total_sales'],
-                'units' => $data['units'],
+                'version' => $row['version'] ?? 'Unknown',
+                'total_sales' => (float)($row['total_sales'] ?? 0),
+                'units' => (int)($row['units'] ?? 0),
             ];
         }
         
-        usort($result, fn($a, $b) => $b['total_sales'] <=> $a['total_sales']);
         return $result;
     }
 
