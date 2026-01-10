@@ -47,27 +47,33 @@ export default function MsfsComparisonCard({ data }: MsfsComparisonCardProps) {
         </div>
       </div>
 
-      {/* Visual comparison bar */}
+      {/* Visual comparison bar - Orange for 2020, Purple for 2024 */}
       <div className="space-y-2">
         <div className="h-3 w-full rounded-full bg-muted overflow-hidden flex">
           {percent2020 > 0 && (
             <div
-              className="h-full bg-primary/80"
+              className="h-full bg-orange-500"
               style={{ width: `${percent2020}%` }}
               title={`MSFS 2020: ${percent2020.toFixed(1)}%`}
             />
           )}
           {percent2024 > 0 && (
             <div
-              className="h-full bg-primary"
+              className="h-full bg-purple-500"
               style={{ width: `${percent2024}%` }}
               title={`MSFS 2024: ${percent2024.toFixed(1)}%`}
             />
           )}
         </div>
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>2020 leads</span>
-          <span>2024 leads</span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+            2020 leads
+          </span>
+          <span className="flex items-center gap-1">
+            2024 leads
+            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+          </span>
         </div>
       </div>
 

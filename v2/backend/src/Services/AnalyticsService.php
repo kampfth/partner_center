@@ -33,16 +33,15 @@ class AnalyticsService
             $byDay[$dayOfWeek]['units']++;
         }
         
+        // Always return all 7 days for consistent chart display
         $result = [];
         for ($i = 0; $i < 7; $i++) {
-            if ($byDay[$i]['units'] > 0) {
-                $result[] = [
-                    'day_of_week' => $i,
-                    'day_name' => self::DAY_NAMES[$i],
-                    'total_sales' => $byDay[$i]['total_sales'],
-                    'units' => $byDay[$i]['units'],
-                ];
-            }
+            $result[] = [
+                'day_of_week' => $i,
+                'day_name' => self::DAY_NAMES[$i],
+                'total_sales' => $byDay[$i]['total_sales'],
+                'units' => $byDay[$i]['units'],
+            ];
         }
         
         return $result;
