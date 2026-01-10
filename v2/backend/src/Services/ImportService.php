@@ -15,6 +15,10 @@ class ImportService
     private CsvParser $parser;
     private array $trackedSet = [];
     private array $metrics;
+    
+    // Maps base product name -> product_id for MSFS 2024 products
+    // Used to redirect Rentals transactions to their base product
+    private array $baseProductMap = [];
 
     public function __construct()
     {
@@ -30,10 +34,12 @@ class ImportService
             'transactions_inserted' => 0,
             'transactions_skipped' => 0,
             'transactions_untracked' => 0,
+            'rentals_merged' => 0,
             'errors' => [],
         ];
 
         $this->loadTrackedSet();
+        $this->loadBaseProductMap();
 
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (!in_array($ext, ['csv', 'zip'], true)) {
@@ -56,6 +62,7 @@ class ImportService
             'transactions_inserted' => $this->metrics['transactions_inserted'],
             'transactions_skipped' => $this->metrics['transactions_skipped'],
             'transactions_untracked' => $this->metrics['transactions_untracked'],
+            'rentals_merged' => $this->metrics['rentals_merged'],
             'status' => 'completed',
         ];
     }
@@ -66,6 +73,24 @@ class ImportService
         foreach ($rows as $r) {
             if (isset($r['product_id'])) {
                 $this->trackedSet[$r['product_id']] = true;
+            }
+        }
+    }
+
+    /**
+     * Load mapping of base product names to product_ids for MSFS 2024
+     * This allows us to redirect Rentals transactions to their base products
+     */
+    private function loadBaseProductMap(): void
+    {
+        $rows = $this->db->select('all_products', 'select=product_id,product_name,lever');
+        foreach ($rows as $r) {
+            $name = $r['product_name'] ?? '';
+            $lever = $r['lever'] ?? '';
+            
+            // Only map MSFS 2024 non-Rentals products
+            if ($lever === 'Microsoft Flight Simulator 2024' && !str_ends_with($name, ' Rentals')) {
+                $this->baseProductMap[$name] = $r['product_id'];
             }
         }
     }
@@ -120,6 +145,9 @@ class ImportService
         $allProductsBatch = [];
         $transactionsBatch = [];
         $seenProducts = [];
+        
+        // First pass: collect all products to build the base product map for new products
+        $pendingBaseProducts = [];
 
         while (($row = fgetcsv($handle)) !== false) {
             $this->metrics['rows_read']++;
@@ -127,26 +155,49 @@ class ImportService
 
             if (!$this->parser->isValidRow($data)) continue;
 
-            // Check if this is a Rentals product for MSFS 2024
-            // Rentals are MSFS 2024 exclusive - we don't create separate entries for them
-            // They will be merged into the base product during report aggregation
             $productName = $data['product_name'] ?? '';
             $lever = $data['lever'] ?? '';
+            $productId = $data['product_id'];
             $isRentals = str_ends_with($productName, ' Rentals');
             $isMsfs2024 = $lever === 'Microsoft Flight Simulator 2024';
 
-            // Only add to all_products if NOT a Rentals product from MSFS 2024
-            if (!isset($seenProducts[$data['product_id']]) && !($isRentals && $isMsfs2024)) {
-                $allProductsBatch[] = [
-                    'product_id' => $data['product_id'],
-                    'product_name' => $data['product_name'],
-                    'lever' => $data['lever'],
-                    'last_seen_at' => date('c'),
-                ];
-                $seenProducts[$data['product_id']] = true;
+            // Track base products (non-Rentals MSFS 2024) for the mapping
+            if ($isMsfs2024 && !$isRentals && !isset($this->baseProductMap[$productName])) {
+                $this->baseProductMap[$productName] = $productId;
+                $pendingBaseProducts[$productName] = $productId;
             }
 
-            if (!isset($this->trackedSet[$data['product_id']])) {
+            // Only add to all_products if NOT a Rentals product from MSFS 2024
+            if (!isset($seenProducts[$productId]) && !($isRentals && $isMsfs2024)) {
+                $allProductsBatch[] = [
+                    'product_id' => $productId,
+                    'product_name' => $productName,
+                    'lever' => $lever,
+                    'last_seen_at' => date('c'),
+                ];
+                $seenProducts[$productId] = true;
+            }
+
+            // Determine the effective product_id for this transaction
+            $effectiveProductId = $productId;
+            
+            if ($isRentals && $isMsfs2024) {
+                // Find the base product name (remove " Rentals" suffix)
+                $baseName = substr($productName, 0, -8);
+                
+                if (isset($this->baseProductMap[$baseName])) {
+                    // Redirect to base product
+                    $effectiveProductId = $this->baseProductMap[$baseName];
+                    $this->metrics['rentals_merged']++;
+                } else {
+                    // No base product found - skip this Rentals transaction
+                    $this->metrics['transactions_untracked']++;
+                    continue;
+                }
+            }
+
+            // Check if the effective product is tracked
+            if (!isset($this->trackedSet[$effectiveProductId])) {
                 $this->metrics['transactions_untracked']++;
                 continue;
             }
@@ -154,7 +205,7 @@ class ImportService
             // Use standard column names matching CSV format
             $transactionsBatch[] = [
                 'earning_id'               => $data['earning_id'],
-                'product_id'               => $data['product_id'],
+                'product_id'               => $effectiveProductId, // Use base product for Rentals
                 'transaction_country_code' => $data['transaction_country_code'],
                 'transaction_date'         => $data['transaction_date'],
                 'units'                    => 1,
