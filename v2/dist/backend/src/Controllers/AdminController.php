@@ -101,7 +101,7 @@ class AdminController
             $this->db->delete('balance_expenses', 'id=not.is.null');
             $this->db->delete('balance_withdrawals', 'id=not.is.null');
             $this->db->delete('balance_revenue_adjustments', 'id=not.is.null');
-            $this->db->delete('balance_initial_cash', 'id=not.is.null');
+            $this->db->delete('balance_initial_cash', 'year=not.is.null');
             
             SettingsController::logAudit('DB_RESET_ALL', 'Performed full system reset - all data deleted');
             
