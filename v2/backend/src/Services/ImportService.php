@@ -127,7 +127,16 @@ class ImportService
 
             if (!$this->parser->isValidRow($data)) continue;
 
-            if (!isset($seenProducts[$data['product_id']])) {
+            // Check if this is a Rentals product for MSFS 2024
+            // Rentals are MSFS 2024 exclusive - we don't create separate entries for them
+            // They will be merged into the base product during report aggregation
+            $productName = $data['product_name'] ?? '';
+            $lever = $data['lever'] ?? '';
+            $isRentals = str_ends_with($productName, ' Rentals');
+            $isMsfs2024 = $lever === 'Microsoft Flight Simulator 2024';
+
+            // Only add to all_products if NOT a Rentals product from MSFS 2024
+            if (!isset($seenProducts[$data['product_id']]) && !($isRentals && $isMsfs2024)) {
                 $allProductsBatch[] = [
                     'product_id' => $data['product_id'],
                     'product_name' => $data['product_name'],

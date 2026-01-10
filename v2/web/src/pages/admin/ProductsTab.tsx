@@ -242,7 +242,7 @@ export function ProductsTab() {
           </div>
 
           {/* Products List */}
-          <div className="max-h-[500px] overflow-auto rounded-md border">
+          <div className="max-h-[calc(100vh-350px)] min-h-[200px] overflow-auto rounded-md border scrollbar-thin">
             {filteredProducts.length > 0 ? (
               <div className="divide-y">
                 {filteredProducts.map((product) => {
