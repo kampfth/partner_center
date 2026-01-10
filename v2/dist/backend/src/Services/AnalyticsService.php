@@ -17,9 +17,6 @@ class AnalyticsService
     // 2-hour intervals (12 buckets)
     private const TIME_BUCKETS = ['00-02', '02-04', '04-06', '06-08', '08-10', '10-12', '12-14', '14-16', '16-18', '18-20', '20-22', '22-24'];
 
-    // Cache for product lever lookup
-    private array $productLeverCache = [];
-
     public function __construct()
     {
         $this->db = new SupabaseClient();
@@ -84,25 +81,20 @@ class AnalyticsService
 
     public function byMsfsVersion(string $start, string $end): array
     {
-        $transactions = $this->getTransactionsWithProductId($start, $end);
+        // Use the pre-aggregated view that already joins transactions with all_products
+        // This is more reliable than PHP-side matching
+        $rows = $this->db->select('sales_by_msfs_version',
+            "select=version,total_sales,units&sale_date=gte.{$start}&sale_date=lte.{$end}");
         
-        // Load product lever cache
-        $this->loadProductLeverCache();
-        
+        // Aggregate results by version
         $byVersion = [];
-        foreach ($transactions as $tx) {
-            // Get lever from all_products table via cache
-            $productId = $tx['product_id'] ?? '';
-            $lever = $this->productLeverCache[$productId] ?? '';
-            
-            // Detect version from lever
-            $version = $this->detectVersionFromLever($lever);
-            
+        foreach ($rows as $row) {
+            $version = $row['version'] ?? 'Unknown';
             if (!isset($byVersion[$version])) {
                 $byVersion[$version] = ['total_sales' => 0, 'units' => 0];
             }
-            $byVersion[$version]['total_sales'] += (float)($tx['transaction_amount'] ?? 0);
-            $byVersion[$version]['units']++;
+            $byVersion[$version]['total_sales'] += (float)($row['total_sales'] ?? 0);
+            $byVersion[$version]['units'] += (int)($row['units'] ?? 0);
         }
         
         $result = [];
@@ -125,48 +117,4 @@ class AnalyticsService
             "select=transaction_date,transaction_amount&transaction_date=gte.{$start}&transaction_date=lt.{$nextDay}");
     }
 
-    private function getTransactionsWithProductId(string $start, string $end): array
-    {
-        $nextDay = date('Y-m-d', strtotime($end . ' +1 day'));
-        return $this->db->select('transactions',
-            "select=product_id,transaction_date,transaction_amount&transaction_date=gte.{$start}&transaction_date=lt.{$nextDay}");
-    }
-
-    /**
-     * Load product lever cache from all_products table
-     */
-    private function loadProductLeverCache(): void
-    {
-        if (!empty($this->productLeverCache)) {
-            return;
-        }
-        
-        $products = $this->db->select('all_products', 'select=product_id,lever');
-        foreach ($products as $p) {
-            $this->productLeverCache[$p['product_id']] = $p['lever'] ?? '';
-        }
-    }
-
-    /**
-     * Detect MSFS version from lever column
-     * - "Microsoft Flight Simulator" = 2020
-     * - "Microsoft Flight Simulator 2024" = 2024
-     */
-    private function detectVersionFromLever(string $lever): string
-    {
-        if ($lever === 'Microsoft Flight Simulator 2024') {
-            return '2024';
-        }
-        if ($lever === 'Microsoft Flight Simulator') {
-            return '2020';
-        }
-        // Fallback pattern matching
-        if (stripos($lever, '2024') !== false) {
-            return '2024';
-        }
-        if (stripos($lever, 'Microsoft Flight Simulator') !== false) {
-            return '2020';
-        }
-        return 'Unknown';
-    }
 }
