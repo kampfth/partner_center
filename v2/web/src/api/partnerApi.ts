@@ -258,11 +258,16 @@ export async function fetchSalesByMsfsVersion(startDate: string, endDate: string
 }
 
 // === All Products ===
+export type ProductType = 'Airports' | 'Aircraft' | 'Liveries' | 'Bundle' | 'Utility' | 'Misc';
+export const PRODUCT_TYPES: ProductType[] = ['Airports', 'Aircraft', 'Liveries', 'Bundle', 'Utility', 'Misc'];
+
 export interface AllProduct {
   id: number;
   product_id: string;
   product_name: string;
   lever: string | null;
+  label: string | null;
+  product_type: ProductType | null;
   first_seen_at: string;
   last_seen_at: string;
   is_tracked: boolean;
@@ -281,6 +286,31 @@ export async function trackProduct(productId: string): Promise<{ success: boolea
 export async function untrackProduct(productId: string): Promise<{ success: boolean; message: string }> {
   const response = await patch<ApiResponse<{ is_tracked: boolean }>>(`/products/${encodeURIComponent(productId)}`, { is_tracked: false });
   return { success: true, message: response.data.is_tracked ? 'Product tracked' : 'Product untracked' };
+}
+
+export interface UpdateAllProductPayload {
+  label?: string | null;
+  product_type?: ProductType | null;
+}
+
+export async function updateAllProduct(productId: string, payload: UpdateAllProductPayload): Promise<AllProduct> {
+  const response = await put<ApiResponse<AllProduct>>(`/products/${encodeURIComponent(productId)}`, payload);
+  return response.data;
+}
+
+export interface ImportProductsResult {
+  updated: number;
+  skipped: number;
+  warnings: string[];
+}
+
+export async function importProductsCsv(csvContent: string): Promise<ImportProductsResult> {
+  const response = await post<ApiResponse<ImportProductsResult>>('/products/import', { csv: csvContent });
+  return response.data;
+}
+
+export function exportProductsCsvUrl(): string {
+  return '/api/products/export';
 }
 
 // === Audit Logs ===

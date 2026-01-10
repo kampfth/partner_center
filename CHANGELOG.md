@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-01-10 - Product Management Enhancements
+
+### Added
+- **Product Type column** — New `product_type` field on `all_products` table with categories: Airports, Aircraft, Liveries, Bundle, Utility, Misc
+- **Product label editing** — Edit custom display labels for any product (tracked or not) via the Products tab
+- **Export Products CSV** — Download complete product list as CSV for offline editing
+- **Import Products CSV** — Upload edited CSV to bulk-update labels and types (matches by `product_id`, never adds/removes products)
+- **Import validation** — Shows warnings for invalid product IDs, invalid product types, and skipped rows
+
+### Fixed
+- **Label editing not working** — Implemented `PUT /api/products/{id}` endpoint and connected to frontend dialog
+- **Reset Database 500 error** — Fixed `balance_initial_cash` deletion (uses `year` as PK, not `id`)
+
+### Changed
+- Products tab now shows label, product type badge, and has Export/Import buttons
+- Edit dialog now includes ProductType dropdown selector
+- Label updates now sync between `all_products` and `products` table when tracked
+
+---
+
 ## [2.0.0] - 2026-01-09 - Enterprise Refactor
 
 ### 🏗️ Major Architecture Changes

@@ -12,6 +12,8 @@ use App\Db\SupabaseClient;
 class ProductService
 {
     private SupabaseClient $db;
+    
+    private const VALID_PRODUCT_TYPES = ['Airports', 'Aircraft', 'Liveries', 'Bundle', 'Utility', 'Misc'];
 
     public function __construct()
     {
@@ -25,6 +27,144 @@ class ProductService
             $query .= '&is_tracked=eq.' . ($tracked ? 'true' : 'false');
         }
         return $this->db->select('all_products', $query);
+    }
+
+    /**
+     * Update label and/or product_type on all_products table
+     * This works for both tracked and non-tracked products
+     */
+    public function updateProduct(string $productId, array $data): array
+    {
+        $product = $this->getProductByProductId($productId);
+        if (!$product) {
+            throw new \RuntimeException('Product not found', 404);
+        }
+
+        $updateData = [];
+        
+        // Handle label
+        if (array_key_exists('label', $data)) {
+            $label = $data['label'];
+            if ($label !== null && $label !== '') {
+                $label = trim($label);
+                if (strlen($label) > 200) {
+                    throw new \RuntimeException('Label must be 200 characters or less', 400);
+                }
+                $updateData['label'] = $label;
+            } else {
+                $updateData['label'] = null; // Clear label, will use product_name
+            }
+        }
+        
+        // Handle product_type
+        if (array_key_exists('product_type', $data)) {
+            $type = $data['product_type'];
+            if ($type !== null && $type !== '') {
+                if (!in_array($type, self::VALID_PRODUCT_TYPES, true)) {
+                    throw new \RuntimeException('Invalid product_type. Must be one of: ' . implode(', ', self::VALID_PRODUCT_TYPES), 400);
+                }
+                $updateData['product_type'] = $type;
+            } else {
+                $updateData['product_type'] = null;
+            }
+        }
+
+        if (empty($updateData)) {
+            throw new \RuntimeException('No valid fields to update', 400);
+        }
+
+        // Update all_products
+        $result = $this->db->update('all_products', $updateData, "product_id=eq.{$productId}");
+        
+        // If product is tracked, also update the products table label
+        if ($product['is_tracked'] && isset($updateData['label'])) {
+            $this->db->update('products', ['label' => $updateData['label'] ?? $product['product_name']], "product_id=eq.{$productId}");
+        }
+
+        return array_merge($product, $updateData);
+    }
+
+    /**
+     * Export all products as array for CSV download
+     */
+    public function exportProducts(): array
+    {
+        $products = $this->db->select('all_products', 'select=product_id,product_name,label,lever,product_type,is_tracked,last_seen_at&order=product_name.asc');
+        return $products;
+    }
+
+    /**
+     * Import products from CSV data
+     * Only updates label and product_type, does NOT add/remove products
+     */
+    public function importProducts(array $rows): array
+    {
+        $updated = 0;
+        $skipped = 0;
+        $warnings = [];
+
+        foreach ($rows as $index => $row) {
+            $productId = $row['product_id'] ?? null;
+            $lineNum = $index + 2; // +2 for 1-based index and header row
+            
+            if (empty($productId)) {
+                $warnings[] = "Line {$lineNum}: Missing product_id";
+                $skipped++;
+                continue;
+            }
+
+            // Check if product exists
+            $product = $this->getProductByProductId($productId);
+            if (!$product) {
+                $warnings[] = "Line {$lineNum}: Product ID '{$productId}' not found in database";
+                $skipped++;
+                continue;
+            }
+
+            $updateData = [];
+
+            // Handle label
+            if (isset($row['label'])) {
+                $label = trim($row['label']);
+                if ($label !== '' && strlen($label) <= 200) {
+                    $updateData['label'] = $label;
+                } elseif ($label === '') {
+                    $updateData['label'] = null;
+                }
+            }
+
+            // Handle product_type
+            if (isset($row['product_type'])) {
+                $type = trim($row['product_type']);
+                if ($type !== '' && in_array($type, self::VALID_PRODUCT_TYPES, true)) {
+                    $updateData['product_type'] = $type;
+                } elseif ($type === '') {
+                    $updateData['product_type'] = null;
+                } elseif ($type !== '') {
+                    $warnings[] = "Line {$lineNum}: Invalid product_type '{$type}', skipping this field";
+                }
+            }
+
+            if (!empty($updateData)) {
+                $this->db->update('all_products', $updateData, "product_id=eq.{$productId}");
+                
+                // Also update products table if tracked
+                if ($product['is_tracked'] && isset($updateData['label'])) {
+                    $labelValue = $updateData['label'] ?? $product['product_name'];
+                    $this->db->update('products', ['label' => $labelValue], "product_id=eq.{$productId}");
+                }
+                
+                $updated++;
+            } else {
+                $skipped++;
+            }
+        }
+
+        return [
+            'updated' => $updated,
+            'skipped' => $skipped,
+            'warnings' => $warnings,
+        ];
     }
 
     public function getProductByProductId(string $productId): ?array

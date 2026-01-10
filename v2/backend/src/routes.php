@@ -39,6 +39,9 @@ $router->get('/logout', fn(Request $r) => (new AuthController())->logout($r), pu
 // Products (all_products)
 $router->get('/api/products', fn(Request $r) => (new ProductsController())->index($r));
 $router->patch('/api/products/{product_id}', fn(Request $r, array $p) => (new ProductsController())->updateTracking($r, $p));
+$router->put('/api/products/{product_id}', fn(Request $r, array $p) => (new ProductsController())->updateProduct($r, $p));
+$router->get('/api/products/export', fn(Request $r) => (new ProductsController())->export($r));
+$router->post('/api/products/import', fn(Request $r) => (new ProductsController())->import($r));
 
 // Tracked Products (products table)
 $router->get('/api/tracked-products', fn(Request $r) => (new ProductsController())->trackedIndex($r));

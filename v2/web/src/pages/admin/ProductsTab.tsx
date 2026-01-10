@@ -1,12 +1,22 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Check, X, Search, AlertCircle, Edit2, CheckSquare, Square } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Check, X, Search, AlertCircle, Edit2, CheckSquare, Square, Download, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { fetchAllProducts, trackProduct, untrackProduct, type AllProduct } from '@/api/partnerApi';
+import { 
+  fetchAllProducts, 
+  trackProduct, 
+  untrackProduct, 
+  updateAllProduct,
+  importProductsCsv,
+  exportProductsCsvUrl,
+  PRODUCT_TYPES,
+  type AllProduct, 
+  type ProductType 
+} from '@/api/partnerApi';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -15,8 +25,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export function ProductsTab() {
   const [allProducts, setAllProducts] = useState<AllProduct[]>([]);
@@ -28,6 +46,12 @@ export function ProductsTab() {
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [editingProduct, setEditingProduct] = useState<AllProduct | null>(null);
   const [editLabel, setEditLabel] = useState('');
+  const [editProductType, setEditProductType] = useState<ProductType | ''>('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importResult, setImportResult] = useState<{ updated: number; skipped: number; warnings: string[] } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const loadData = async () => {
@@ -55,13 +79,13 @@ export function ProductsTab() {
         await untrackProduct(product.product_id);
         toast({
           title: 'Success',
-          description: `"${product.product_name}" is no longer tracked`,
+          description: `"${product.label || product.product_name}" is no longer tracked`,
         });
       } else {
         await trackProduct(product.product_id);
         toast({
           title: 'Success',
-          description: `"${product.product_name}" is now being tracked`,
+          description: `"${product.label || product.product_name}" is now being tracked`,
         });
       }
       await loadData();
@@ -96,6 +120,8 @@ export function ProductsTab() {
     allProducts.filter((p) =>
       p.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.lever && p.lever.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (p.label && p.label.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (p.product_type && p.product_type.toLowerCase().includes(searchTerm.toLowerCase())) ||
       p.product_id.toLowerCase().includes(searchTerm.toLowerCase())
     ),
     [allProducts, searchTerm]
@@ -146,6 +172,101 @@ export function ProductsTab() {
     setBulkProcessing(false);
   };
 
+  const handleSaveEdit = async () => {
+    if (!editingProduct) return;
+    
+    setSavingEdit(true);
+    try {
+      const payload: { label?: string | null; product_type?: ProductType | null } = {};
+      
+      // Determine label value
+      const trimmedLabel = editLabel.trim();
+      if (trimmedLabel === '' || trimmedLabel === editingProduct.product_name) {
+        payload.label = null; // Clear label to use product_name
+      } else {
+        payload.label = trimmedLabel;
+      }
+      
+      // Determine product_type value
+      if (editProductType === '') {
+        payload.product_type = null;
+      } else {
+        payload.product_type = editProductType as ProductType;
+      }
+
+      await updateAllProduct(editingProduct.product_id, payload);
+      
+      toast({
+        title: 'Success',
+        description: `Product "${editingProduct.product_name}" updated`,
+      });
+      
+      setEditingProduct(null);
+      await loadData();
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to update product',
+      });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleExport = () => {
+    // Open export URL in new tab/download
+    window.open(exportProductsCsvUrl(), '_blank');
+    toast({
+      title: 'Export Started',
+      description: 'Your product list CSV is being downloaded.',
+    });
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input so same file can be selected again
+    e.target.value = '';
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid File',
+        description: 'Please select a CSV file.',
+      });
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+    setImportDialogOpen(true);
+
+    try {
+      const csvContent = await file.text();
+      const result = await importProductsCsv(csvContent);
+      setImportResult(result);
+      
+      if (result.updated > 0) {
+        await loadData();
+      }
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Import Failed',
+        description: err instanceof Error ? err.message : 'Failed to import products',
+      });
+      setImportDialogOpen(false);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const trackedCount = allProducts.filter((p) => p.is_tracked).length;
   const untrackedCount = allProducts.length - trackedCount;
 
@@ -161,10 +282,31 @@ export function ProductsTab() {
     <div className="space-y-6">
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle>Product Tracking</CardTitle>
-          <CardDescription>
-            Manage which products are tracked in reports and analytics. Products are automatically discovered when you upload CSV files.
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle>Product Tracking</CardTitle>
+              <CardDescription>
+                Manage which products are tracked in reports and analytics.
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Download className="h-4 w-4 mr-1" />
+                Export
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleImportClick}>
+                <Upload className="h-4 w-4 mr-1" />
+                Import
+              </Button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".csv"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Stats */}
@@ -188,13 +330,13 @@ export function ProductsTab() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by product name, lever, or ID..."
+                placeholder="Search by name, label, type, lever, or ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
@@ -249,6 +391,7 @@ export function ProductsTab() {
                   const isProcessing = processingIds.has(product.product_id);
                   const isSelected = selectedIds.has(product.product_id);
                   const checkboxId = `prod-sel-${product.id}`;
+                  const displayName = product.label || product.product_name;
                   return (
                     <div
                       key={product.id}
@@ -280,8 +423,13 @@ export function ProductsTab() {
                       >
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="font-medium text-sm truncate">
-                            {product.product_name}
+                            {displayName}
                           </span>
+                          {product.label && product.label !== product.product_name && (
+                            <span className="text-xs text-muted-foreground truncate max-w-[200px]" title={product.product_name}>
+                              ({product.product_name})
+                            </span>
+                          )}
                           {product.is_tracked ? (
                             <Badge variant="default" className="text-xs bg-green-600 shrink-0">
                               Tracked
@@ -289,6 +437,11 @@ export function ProductsTab() {
                           ) : (
                             <Badge variant="secondary" className="text-xs shrink-0">
                               Not Tracked
+                            </Badge>
+                          )}
+                          {product.product_type && (
+                            <Badge variant="outline" className="text-xs shrink-0">
+                              {product.product_type}
                             </Badge>
                           )}
                         </div>
@@ -309,9 +462,10 @@ export function ProductsTab() {
                           disabled={isProcessing || bulkProcessing}
                           onClick={() => {
                             setEditingProduct(product);
-                            setEditLabel(product.product_name);
+                            setEditLabel(product.label || product.product_name);
+                            setEditProductType((product.product_type as ProductType) || '');
                           }}
-                          title="Edit label"
+                          title="Edit label & type"
                         >
                           <Edit2 className="h-3 w-3" />
                         </Button>
@@ -351,16 +505,19 @@ export function ProductsTab() {
         </CardContent>
       </Card>
 
-      {/* Edit Label Dialog */}
+      {/* Edit Product Dialog */}
       <Dialog open={!!editingProduct} onOpenChange={(open) => !open && setEditingProduct(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Product Label</DialogTitle>
+            <DialogTitle>Edit Product</DialogTitle>
+            <DialogDescription>
+              Update the display label and category for this product.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Original Name</Label>
-              <p className="text-sm text-muted-foreground">{editingProduct?.product_name}</p>
+              <p className="text-sm text-muted-foreground break-words">{editingProduct?.product_name}</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-label">Display Label</Label>
@@ -369,32 +526,83 @@ export function ProductsTab() {
                 value={editLabel}
                 onChange={(e) => setEditLabel(e.target.value)}
                 placeholder="Enter custom label..."
+                maxLength={200}
               />
               <p className="text-xs text-muted-foreground">
                 This label will be shown in reports and dashboards instead of the original name.
+                Leave empty or same as original to use the product name.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-type">Product Type</Label>
+              <Select
+                value={editProductType}
+                onValueChange={(val) => setEditProductType(val as ProductType | '')}
+              >
+                <SelectTrigger id="edit-type">
+                  <SelectValue placeholder="Select a type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">-- None --</SelectItem>
+                  {PRODUCT_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Categorize this product for filtering and organization.
               </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingProduct(null)}>
+            <Button variant="outline" onClick={() => setEditingProduct(null)} disabled={savingEdit}>
               Cancel
             </Button>
-            <Button
-              onClick={async () => {
-                if (!editingProduct) return;
-                // Note: Label editing requires product to be tracked first
-                // For now we just show info - full implementation needs updateTrackedProduct
-                toast({
-                  title: 'Info',
-                  description: editingProduct.is_tracked 
-                    ? 'Label editing will be available after tracking the product.'
-                    : 'Track this product first to set a custom label.',
-                });
-                setEditingProduct(null);
-              }}
-            >
-              Save Label
+            <Button onClick={handleSaveEdit} disabled={savingEdit}>
+              {savingEdit ? 'Saving...' : 'Save Changes'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Result Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import Results</DialogTitle>
+          </DialogHeader>
+          {importing ? (
+            <div className="py-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Importing products...</p>
+            </div>
+          ) : importResult ? (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="p-4 rounded-lg bg-green-500/10">
+                  <div className="text-2xl font-bold text-green-600">{importResult.updated}</div>
+                  <div className="text-sm text-muted-foreground">Updated</div>
+                </div>
+                <div className="p-4 rounded-lg bg-amber-500/10">
+                  <div className="text-2xl font-bold text-amber-600">{importResult.skipped}</div>
+                  <div className="text-sm text-muted-foreground">Skipped</div>
+                </div>
+              </div>
+              
+              {importResult.warnings.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Warnings ({importResult.warnings.length})</Label>
+                  <div className="max-h-[200px] overflow-auto rounded-md border p-3 bg-muted/50">
+                    {importResult.warnings.map((warning, i) => (
+                      <p key={i} className="text-xs text-amber-600 mb-1">{warning}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button onClick={() => setImportDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

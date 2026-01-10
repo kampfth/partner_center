@@ -47,6 +47,14 @@ class Response
         return new self($status, '', ['Location' => $url]);
     }
 
+    public static function csv(string $content, string $filename = 'export.csv'): self
+    {
+        return new self(200, $content, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
     public function withHeader(string $name, string $value): self
     {
         $this->headers[$name] = $value;
