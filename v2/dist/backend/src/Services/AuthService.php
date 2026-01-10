@@ -1,6 +1,6 @@
 <?php
 /**
- * Auth Service - TOTP management and secrets persistence
+ * Auth Service - TOTP management, secrets persistence, and setup flow
  */
 
 declare(strict_types=1);
@@ -13,19 +13,92 @@ class AuthService
 {
     private Totp $totp;
     private string $secretsFile;
+    private string $envFile;
 
     public function __construct()
     {
         $this->totp = new Totp();
         $this->secretsFile = VAR_DIR . '/secrets.php';
+        $this->envFile = dirname(VAR_DIR) . '/.env';
     }
+
+    // ==================== SUPABASE CONFIG ====================
+
+    /**
+     * Check if Supabase is configured in .env
+     */
+    public function isSupabaseConfigured(): bool
+    {
+        $url = SUPABASE_URL;
+        $key = SUPABASE_SERVICE_ROLE_KEY;
+        
+        return !empty($url) && !empty($key) && 
+               strpos($url, 'supabase.co') !== false &&
+               strlen($key) > 50;
+    }
+
+    /**
+     * Test Supabase connection with provided credentials
+     */
+    public function testSupabaseConnection(string $url, string $key): bool
+    {
+        $testUrl = rtrim($url, '/') . '/rest/v1/';
+        
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => [
+                    "apikey: {$key}",
+                    "Authorization: Bearer {$key}",
+                ],
+                'timeout' => 10,
+                'ignore_errors' => true,
+            ],
+        ]);
+        
+        $response = @file_get_contents($testUrl, false, $context);
+        
+        // Check HTTP status from headers
+        if (isset($http_response_header)) {
+            foreach ($http_response_header as $header) {
+                if (preg_match('/^HTTP\/\d+\.\d+\s+(\d+)/', $header, $matches)) {
+                    $status = (int)$matches[1];
+                    // 200 OK or 404 (no tables) are both valid - means connection works
+                    return $status < 500;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Save Supabase credentials to .env file
+     */
+    public function saveSupabaseConfig(string $url, string $key): bool
+    {
+        $envContent = "# Supabase Configuration\n";
+        $envContent .= "SUPABASE_URL={$url}\n";
+        $envContent .= "SUPABASE_SERVICE_ROLE_KEY={$key}\n";
+        
+        $result = @file_put_contents($this->envFile, $envContent);
+        
+        if ($result !== false) {
+            // Set restrictive permissions
+            @chmod($this->envFile, 0600);
+            return true;
+        }
+        
+        return false;
+    }
+
+    // ==================== TOTP CONFIG ====================
 
     public function getSecret(): ?string
     {
         // Priority 1: env variable
-        $envSecret = AUTH_TOTP_SECRET;
-        if ($envSecret !== '') {
-            return $envSecret;
+        if (defined('AUTH_TOTP_SECRET') && AUTH_TOTP_SECRET !== '') {
+            return AUTH_TOTP_SECRET;
         }
 
         // Priority 2: persisted file

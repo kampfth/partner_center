@@ -87,7 +87,7 @@ const App = () => (
                 element={
                   <Suspense fallback={<PageLoader />}>
                     <div className="animate-fade-in">
-                      <DashboardPage />
+                    <DashboardPage />
                     </div>
                   </Suspense>
                 }
@@ -97,7 +97,7 @@ const App = () => (
                 element={
                   <Suspense fallback={<PageLoader />}>
                     <div className="animate-fade-in">
-                      <GraphicsPage />
+                    <GraphicsPage />
                     </div>
                   </Suspense>
                 }
@@ -107,7 +107,7 @@ const App = () => (
                 element={
                   <Suspense fallback={<PageLoader />}>
                     <div className="animate-fade-in">
-                      <BalancePage />
+                    <BalancePage />
                     </div>
                   </Suspense>
                 }
@@ -117,7 +117,7 @@ const App = () => (
                 element={
                   <Suspense fallback={<PageLoader />}>
                     <div className="animate-fade-in">
-                      <AdminPage />
+                    <AdminPage />
                     </div>
                   </Suspense>
                 }
@@ -130,7 +130,7 @@ const App = () => (
               element={
                 <Suspense fallback={<PageLoader />}>
                   <div className="animate-fade-in">
-                    <NotFound />
+                  <NotFound />
                   </div>
                 </Suspense>
               }
